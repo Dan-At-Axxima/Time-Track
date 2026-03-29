@@ -24,55 +24,59 @@ namespace TimeTrackerRepo.Services.Reports.Legacy
 
             if (!oneClientOnly)
             {
-                sqlQuery = "SELECT * from [dbo].[TransacdtionEmployeeRates] where Date between @date1 and @date2 order by Client, Project, Activity,[Employee Number],Date asc";
+                sqlQuery = @"
+SELECT *
+FROM [dbo].[TransacdtionEmployeeRates]
+WHERE AxximaCompanyCodes = @companyCode
+  AND [Date] BETWEEN @date1 AND @date2
+ORDER BY Client, Project, Activity, [Employee Number], [Date] ASC";
             }
             else
             {
-                sqlQuery = "SELECT * from [dbo].[TransacdtionEmployeeRates] where Date between @date1 and @date2 and Client = @client order by Client, Project, Activity,[Employee Number],Date asc";
+                sqlQuery = @"
+SELECT *
+FROM [dbo].[TransacdtionEmployeeRates]
+WHERE AxximaCompanyCodes = @companyCode
+  AND [Date] BETWEEN @date1 AND @date2
+  AND Client = @client
+ORDER BY Client, Project, Activity, [Employee Number], [Date] ASC";
             }
 
-            try
+            using var conn = new SqlConnection(_connectionString);
+            conn.Open();
+
+            using var cmd = new SqlCommand(sqlQuery, conn);
+            cmd.Parameters.Add(new SqlParameter("@companyCode", companyCode));
+            cmd.Parameters.Add(new SqlParameter("@date1", startDate));
+            cmd.Parameters.Add(new SqlParameter("@date2", endDate));
+
+            if (oneClientOnly)
             {
-                using var conn = new SqlConnection(_connectionString);
-                conn.Open();
-
-                using var cmdIns = new SqlCommand(sqlQuery, conn);
-                cmdIns.Parameters.Add(new SqlParameter("@companyCode", companyCode));
-                cmdIns.Parameters.Add(new SqlParameter("@date1", startDate));
-                cmdIns.Parameters.Add(new SqlParameter("@date2", endDate));
-
-                if (oneClientOnly)
-                {
-                    cmdIns.Parameters.Add(new SqlParameter("@client", client));
-                }
-
-                using var reader = cmdIns.ExecuteReader();
-                while (reader.Read())
-                {
-                    var data = new WipDetailReportData
-                    {
-                        DdaRates = reader.GetDouble(0),
-                        AxximaRates = reader.GetDouble(1),
-                        FirstName = reader.GetString(2),
-                        LastName = reader.GetString(3),
-                        EmployeeNumber = reader.GetInt32(4),
-                        Client = reader.GetString(5),
-                        Project = reader.GetString(6),
-                        Activity = reader.GetString(7),
-                        Date = reader.GetDateTime(8),
-                        Hours = reader.GetString(9),
-                        Comment = reader.GetString(10),
-                        SlipId = reader.GetString(11),
-                        Multiple = reader.GetDouble(12),
-                        AxximaCompanyCodes = reader.GetInt32(13)
-                    };
-
-                    wipDetail.Add(data);
-                }
+                cmd.Parameters.Add(new SqlParameter("@client", client));
             }
-            catch (Exception ex)
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                Console.WriteLine(ex.Message);
+                var data = new WipDetailReportData
+                {
+                    DdaRates = reader.IsDBNull(0) ? 0 : reader.GetDouble(0),
+                    AxximaRates = reader.IsDBNull(1) ? 0 : reader.GetDouble(1),
+                    FirstName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    LastName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    EmployeeNumber = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    Client = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    Project = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                    Activity = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                    Date = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8),
+                    Hours = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                    Comment = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+                    SlipId = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+                    Multiple = reader.IsDBNull(12) ? 1.0 : reader.GetDouble(12),
+                    AxximaCompanyCodes = reader.IsDBNull(13) ? 0 : reader.GetInt32(13)
+                };
+
+                wipDetail.Add(data);
             }
 
             foreach (WipDetailReportData d in wipDetail)
