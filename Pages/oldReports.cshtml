@@ -1,0 +1,113 @@
+﻿@page
+@model TimeTrackerRepo.Pages.ReportsModel
+@{
+    var startDate = Model.startDate;
+    var endDate = Model.endDate;
+}
+
+@Html.HiddenFor(m => m.startDate, new { @id = "startDateValue" })
+@Html.HiddenFor(m => m.endDate, new { @id = "endDateValue" })
+
+@using Kendo.Mvc.UI;
+
+
+  @*<div class="row">*@
+        <div class="col-md-2">
+            <label for="start-date">Start Date:</label>
+            <div class="input-group">
+            <input type="text" class="form-control" name="startDate" id="startDate" placeholder="Select Start Date">
+            </div>
+        </div>
+        <div class="col-md-2 mt-2">
+            <label for="end-date">End Date:</label>
+            <div class="input-group">
+            <input type="text" class="form-control" name="end-date" id="endDate" placeholder="Select End Date">
+            </div>
+        </div>
+ @*</div>*@
+
+  <div class="row">
+    <p class="col-md-4 text-center pt-2 mt-5 ">Monthly Reports:</p>
+    <p class="col-md-4 text-center pt-2 mt-5">Exception Reports:</p>
+    <p class="col-md-4 text-center pt-2 mt-5">Utilities:</p>
+  </div>
+  <div class="row">
+      <div class="col-md-4">
+         <form class="col-md-12 h-100" class="mt-4" method="post"style="border: 1px solid black; padding: 10px">
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="sales" style="width:100%">All Reports</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="inventory" style="width:100%">Inventory Report</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="expenses"  style="width:100%">Expenses Report</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="performance"  style="width:100%">Performance Report</button>
+            </div>
+         </form>
+       </div>
+
+      <div class="col-md-4">
+
+         <form class="col-md-12 h-100" class="mt-4" method="post"style="border: 1px solid black; padding: 10px">
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="sales" style="width:100%">All Reports</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="inventory" style="width:100%">Work In Progress(WIP)</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="expenses"  style="width:100%">Wip For Single Client</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="performance"  style="width:100%">Extract</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="performance"  style="width:100%">Wip Totals</button>
+            </div>
+        </form>
+    </div>
+          <div class="col-md-4">
+
+         <form class="col-md-12 h-100" class="mt-4" method="post"style="border: 1px solid black; padding: 10px">
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="sales" style="width:100%">All Reports</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="inventory" style="width:100%">Inventory Report</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="expenses"  style="width:100%">Expenses Report</button>
+            </div>
+            <div class="col-md-10 offset-1" style="display: block; margin-bottom: 10px">
+                <button type="submit" name="report" value="performance"  style="width:100%">Performance Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
+
+<script>
+let sDate = $('#startDateValue').val();
+let eDate = $('#endDateValue').val();
+ let d1 = makeJavaScriptDate(sDate);
+ let d2 = makeJavaScriptDate(eDate);
+$(document).ready(function() {
+    $("#startDate").kendoDatePicker({
+        change: function() {
+            let newStartDate =kendo.toString(this.value(),"yyyy-MM-dd");
+            console.log('the new date is ', newStartDate);
+        },
+        format: "yyyy-MM-dd",
+        value: d1
+    });
+     $("#endDate").kendoDatePicker({
+        format: "yyyy-MM-dd",
+        value: d2
+    });
+})
+</script>

@@ -1,0 +1,151 @@
+﻿@page
+@model TimeTrackerRepo.Pages.Reports.ExtractModel
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrator")]
+
+@{
+    ViewData["Title"] = "Extract Report";
+}
+
+<h2>Extract Report</h2>
+
+<div class="text-muted mb-3">
+    Period: @Model.StartDate.ToString("yyyy-MM-dd") to @Model.EndDate.ToString("yyyy-MM-dd")
+    &nbsp;•&nbsp; Records: @Model.Rows.Count
+    &nbsp;•&nbsp; Generated: @Model.GeneratedAt.ToString("yyyy-MM-dd h:mm:ss tt")
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (Model.Rows.Count > 0)
+{
+    <div class="mb-3">
+        <form method="post" asp-page-handler="Export" class="d-inline">
+            <input type="hidden" name="StartDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="EndDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="IncludeAllocations" value="@Model.IncludeAllocations" />
+
+            <button type="submit" class="btn btn-primary">
+                Export to Excel
+            </button>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table id="extractTable" class="table table-striped table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th class="sortable" onclick="sortTable(0, 'number', this)">
+                        Employee Number <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable(1, 'text', this)">
+                        Client <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable(2, 'text', this)">
+                        Project <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable(3, 'text', this)">
+                        Activity <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable(4, 'date', this)">
+                        Date <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable text-end" onclick="sortTable(5, 'time', this)">
+                        Hours <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable text-end" onclick="sortTable(6, 'number', this)">
+                        Decimal Hours <span class="sort-indicator">↕</span>
+                    </th>
+                    <th class="sortable" onclick="sortTable(7, 'text', this)">
+                        Comment <span class="sort-indicator">↕</span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>@row.EmployeeNumber</td>
+                        <td>@row.Client</td>
+                        <td>@row.Project</td>
+                        <td>@row.Activity</td>
+                        <td>@row.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="text-end">@row.Hours</td>
+                        <td class="text-end">@row.DecimalHours</td>
+                        <td>@row.Comment</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        let currentSortColumn = -1;
+        let currentSortDirection = "asc";
+
+        function parseTime(value) {
+            const parts = value.split(':');
+            if (parts.length < 2) return 0;
+            return (parseInt(parts[0]) || 0) * 60 + (parseInt(parts[1]) || 0);
+        }
+
+        function clearIndicators() {
+            document.querySelectorAll(".sort-indicator").forEach(el => el.textContent = "↕");
+            document.querySelectorAll("th.sortable").forEach(th => th.classList.remove("active-sort"));
+        }
+
+        function sortTable(columnIndex, type, headerElement) {
+            const table = document.getElementById("extractTable");
+            const tbody = table.tBodies[0];
+            const rows = Array.from(tbody.rows);
+
+            if (currentSortColumn === columnIndex) {
+                currentSortDirection = currentSortDirection === "asc" ? "desc" : "asc";
+            } else {
+                currentSortColumn = columnIndex;
+                currentSortDirection = "asc";
+            }
+
+            rows.sort((a, b) => {
+                let aVal = a.cells[columnIndex].innerText.trim();
+                let bVal = b.cells[columnIndex].innerText.trim();
+
+                if (type === "number") {
+                    aVal = parseFloat(aVal) || 0;
+                    bVal = parseFloat(bVal) || 0;
+                }
+                else if (type === "date") {
+                    aVal = new Date(aVal);
+                    bVal = new Date(bVal);
+                }
+                else if (type === "time") {
+                    aVal = parseTime(aVal);
+                    bVal = parseTime(bVal);
+                }
+                else {
+                    aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase();
+                }
+
+                if (aVal < bVal) return currentSortDirection === "asc" ? -1 : 1;
+                if (aVal > bVal) return currentSortDirection === "asc" ? 1 : -1;
+                return 0;
+            });
+
+            tbody.innerHTML = "";
+            rows.forEach(row => tbody.appendChild(row));
+
+            clearIndicators();
+            headerElement.classList.add("active-sort");
+
+            const indicator = headerElement.querySelector(".sort-indicator");
+            indicator.textContent = currentSortDirection === "asc" ? "▲" : "▼";
+        }
+    </script>
+}

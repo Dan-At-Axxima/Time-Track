@@ -1,0 +1,2 @@
+﻿var emptyProducts = [{ ActivityID: 1, Activity: "abc", Comment: "asdf", Date: "2022/11/09", UnitsInStock: 0, Discontinued: false },
+    { ActivityID: 2, Activity: "dedabc", Comment: "vvvvasdf", Date: "2022/11/09", UnitsInStock: 1, Discontinued: true }];

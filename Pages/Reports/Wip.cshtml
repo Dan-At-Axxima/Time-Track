@@ -1,0 +1,72 @@
+﻿@page
+@model TimeTrackerRepo.Pages.Reports.WipModel
+@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrator")]
+
+@{
+    ViewData["Title"] = "WIP Detail Report";
+}
+
+<h2>WIP Detail Report</h2>
+
+<div class="text-muted mb-3">
+    Period: @Model.StartDate.ToString("yyyy-MM-dd") to @Model.EndDate.ToString("yyyy-MM-dd")
+    &nbsp;•&nbsp; Records: @Model.Rows.Count
+    &nbsp;•&nbsp; Generated: @Model.GeneratedAt.ToString("yyyy-MM-dd h:mm:ss tt")
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (Model.Rows.Count > 0)
+{
+    <div class="mb-3">
+        <form method="post" asp-page-handler="Export" class="d-inline">
+            <input type="hidden" name="StartDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="EndDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="WithAllocation" value="@Model.WithAllocation" />
+            <input type="hidden" name="IFRSOnly" value="@Model.IFRSOnly" />
+
+            <button type="submit" class="btn btn-primary">
+                Export to Excel
+            </button>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <table id="wipTable" class="table table-striped table-bordered align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Client</th>
+                    <th>Project</th>
+                    <th>Activity</th>
+                    <th>Associate</th>
+                    <th>Date</th>
+                    <th class="text-end">Hours</th>
+                    <th class="text-end">DDA</th>
+                    <th class="text-end">Axxima</th>
+                    <th>Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    <tr>
+                        <td>@row.Client</td>
+                        <td>@row.Project</td>
+                        <td>@row.Activity</td>
+                        <td>@row.EmployeeName</td>
+                        <td>@row.Date.ToString("yyyy-MM-dd")</td>
+                        <td class="text-end">@row.Hours</td>
+                        <td class="text-end">@row.DdaRates</td>
+                        <td class="text-end">@row.AxximaRates</td>
+                        <td>@row.Comment</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

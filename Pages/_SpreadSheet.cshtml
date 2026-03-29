@@ -1,0 +1,155 @@
+﻿<script>
+        function addTheValues(sheet){
+            range = GetRange("A", $("#lastColumn").val(), 1, 1);
+            var stringArray1 = @Html.Raw(Json.Serialize(Model.ReturnHoursStringArray));
+            var stringArray2 = stringArray1.toString();
+            var allValuesArray = stringArray1.split('#');
+            var count = allValuesArray.length;
+            for (let i = 0; i < count; i++) {
+            var values2 = [];
+            var values = allValuesArray[i];
+            var arr = values.split(',');
+            values2.push(arr);
+            range = GetRange("A", $("#lastColumn").val(), i+2, 1);
+            range.values(values2);
+            }
+}
+</script>
+
+
+<script>
+    function changeMonth(e) {
+   //     alert(e);
+    }
+</script>
+
+    <script>
+
+$(document).ready(function() {
+    $('#isLoading').val(true);
+    var spreadsheet = $("#spreadsheet").kendoSpreadsheet({
+       // rows: 100,
+        select: onSelect,
+   //     changing: onChanging,
+        change: onChange,
+        toolbar: {
+            home: ["borders", {
+                type: "button",
+                text: "Comments",
+                showText: "both",
+                icon: "k-icon k-i-cog",
+                click: function() {
+                    makeDialog();
+                    openDialog();
+                },
+            },
+                {
+                    type: "splitButton",
+                    text: "Select Year",
+                    menuButtons: [
+                        { id: "1", text: "2002" },
+                        { id: "2", text: "2003" }
+                    ]
+                },
+                {
+                    type: "splitButton",
+                    text: "Select Month",
+                    click: function() { changeMonth(); },
+                    menuButtons: [
+                        { id: "1", text: "January" },
+                        { id: "2", text: "February" }
+                    ]
+                },
+
+            ]
+        },
+    });
+    var spreadsheet = $("#spreadsheet").data("kendoSpreadsheet"); // The widget instance.
+    var activeSheet = spreadsheet.activeSheet();
+    activeSheet.frozenColumns(3);
+    activeSheet.frozenRows(1);
+   
+
+    var contextMenu = spreadsheet._view.cellContextMenu;
+
+    contextMenu.bind("activate", function(e) {
+
+        makeDialog();
+        openDialog();
+    })
+
+    var sheet = spreadsheet.activeSheet();
+    sheet.rowHeight(0, 40);
+    var list = $('.k-spreadsheet-cell-context-menu li:first-child');
+    var list = $('.k-spreadsheet-cell-context-menu li:first-child').remove();
+    var list = $('.k-spreadsheet-cell-context-menu li:first-child').remove();
+    var list = $('.k-spreadsheet-cell-context-menu li:first-child').remove();
+    var list = $('.k-spreadsheet-cell-context-menu li:first-child').remove();
+    var test = $("#columnTitles").val();
+    addColumnTitles(sheet);
+    addStringValues(sheet);
+    $('#isLoading').val('false');
+
+
+  });
+ </script>
+
+ <script>
+  function addStringValues(sheet) {
+    range = GetRange("A", $("#lastColumn").val(), 1, 1);
+    var allValues =  @Html.Raw(Json.Serialize(Model.ReturnHoursString));
+    var allValuesArray = allValues.split('#');
+    var rowCount = allValuesArray.length;
+    var rows = [];
+    for (let i = 0; i < rowCount; i++) {
+        var values = allValuesArray[i];
+        var row = values.split(',');
+        rows.push(row);
+    }
+    sheet.resize(rowCount + 5, 100);
+    range = GetRange("A", $("#lastColumn").val(), 2, rowCount + 1);
+    range.values(rows);
+
+    var allComments =  @Html.Raw(Json.Serialize(Model.ReturnCommentString));
+    var columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH"];
+    var allCommentsArray = allComments.split('^');
+    var commentRowCount = allCommentsArray.length;
+    var commentRows = [];
+    var firstColumnIndex = 3;
+    var firstRowIndex = 2;
+    var commentColumnCount = 0;
+    for (let r = 0; commentRowCount; r++) {
+
+        var commentRow = [];
+        var thisRow = allCommentsArray[r];
+        if (thisRow != 'undefined' && thisRow != null && thisRow.length > 0) {
+            commentRow = thisRow.split('~');
+        }
+        else {
+            break;
+        }
+        if (commentColumnCount === 0) {
+            commentColumnCount = commentRow.length;
+        }
+        for (let c = 0; c < (commentColumnCount - firstColumnIndex); c++) {
+            var value = commentRow[c + firstColumnIndex];
+            if (c == commentColumnCount) {
+            }
+            var cellRange = columns[c + firstColumnIndex].concat(r + firstRowIndex);
+            if (value != null && value.length > 0) {
+                sheet.range(cellRange).comment(value);
+            }
+
+        }
+    }
+    range = GetRange(columns[firstColumnIndex], columns[commentColumnCount - 1], firstRowIndex, commentRowCount);
+    range.textAlign('right');
+    range = GetRange(1, 3, 1, commentRowCount + 1);
+    sheet.columnWidth(1, 150);
+    sheet.columnWidth(2, 150);
+    var currentDay =  @Html.Raw(Model.currentDayOfMonth);
+    var rangeString = columns[currentDay - 1 + firstColumnIndex] + '2' + ':' + columns[currentDay - 1 + firstColumnIndex] + '2';
+    sheet.range(rangeString).select();
+    range = GetRange(columns[firstColumnIndex], columns[commentColumnCount - 1], firstRowIndex, commentRowCount);
+}
+</script>

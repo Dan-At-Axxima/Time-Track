@@ -1,0 +1,304 @@
+﻿@page
+@model TimeTrackerRepo.Pages.ManageActivitiesModel
+@{
+}
+@using TimeTrackerRepo.Models;
+@using Kendo.Mvc.UI;
+@*@Html.Raw(Model.ActivityName)*@
+
+@Html.HiddenFor(m => m.BaseURL, new { @id = "baseURL" })
+@Html.HiddenFor(m => m.RemoveAssignmentURL, new { @id = "removeAssignmentURL" })
+@Html.HiddenFor(m => m.AddAssignmentURL, new { @id = "addAssignmentURL" })
+@Html.HiddenFor(m => m.IsAdministrator, new { @id = "isAdministrator" })
+
+
+
+ <div class="modal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Modal title</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p>Modal body text goes here.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary">Save changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+                @*<script id="buttonLeftTemplate" type="text/x-kendo-template">
+                 <span style="font-size:48px"  class="k-icon k-i-caret-double-alt-left" >dd</span>
+                </script>*@
+                @*<input type="hidden" id="thisSelectedUser" name="thisSelectedUser"/>*@
+                <script>
+                var assignmentsData =  @Html.Raw(Json.Serialize(Model.AssignmentListItems));
+                console.log('Assignment List Items ', assignmentsData);
+                $(document).ready(function() {
+                    var dataSource = new kendo.data.DataSource({
+                        transport: {
+                            read: function(e) {
+                                e.success(assignmentsData);
+                            },
+                            destroy: function(e) {
+                                var res = makeRemoveAssignmentRecord(e.data);
+                                console.log('destroy ',res);
+                                e.success();
+                            }
+                        },
+                        error: function(e) {
+                            console.log("we got an error dude");
+                        },
+                        batch: false,
+                        pageSize: 999,
+                        schema: {
+                            model: {
+                                id: "id",
+                                fields: {
+                                    client: {editable: false},
+                                    project: {editable: false},
+                                    activity: {editable: false},
+                                }
+                            }
+                        }
+                    });
+                    $("#userGrid").kendoGrid({
+                        dataSource: dataSource,
+                        height: 800,
+                        sortable: true,
+                        reorderable: true,
+                        resizable: true,
+                        selectable: "single",
+                        editable: "inline",
+                        filterable: true,
+                        columnMenu: true,
+                        toolbar: ["search"],
+                        pageable: false,
+                        columns: [ {
+                                field: "client",
+                                title: "Client",
+                                locked: true,
+                                lockable: false,
+                                width: 150
+                            }, {
+                                field: "project",
+                                title: "Project",
+                                width: 200
+                            }, {
+                                field: "activity",
+                                title: "Activity",
+                                width: 150
+                            }
+@*                            {
+                                command: ["destroy"],title: "", width: 200, attributes: { style: "text-align: center" } 
+                            }
+*@                        ]
+                    });
+
+                });
+                $(document).ready(function() {
+                    var toobarButtons = $("#toolbarOptions").val();
+                    var activityData =  @Html.Raw(Json.Serialize(Model.ActivityList));
+                       var activityDataSource = new kendo.data.DataSource({
+                        transport: {
+                            read: function(e) {
+                                e.success(activityData);
+                            },
+                            destroy: function(e) {
+                                var res = makeRemoveAssignmentRecord(e.data);
+                                console.log('destroy ',res);
+                                e.success();
+                            }
+                        },
+                        error: function(e) {
+                            console.log("we got an error due");
+                        },
+                        batch: false,
+                        pageSize: 999,
+                        schema: {
+                            model: {
+                                id: "id",
+                                fields: {
+                                    client: {editable: false},
+                                    project: {editable: false},
+                                    activity: {editable: false},
+                                }
+                            }
+                        }
+                    });
+                    var toolbar = 
+                    $("#axximaGrid").kendoGrid({
+                        dataSource: activityDataSource,
+                        height: 800,
+                        sortable: true,
+                        reorderable: true,
+                        resizable: true,
+                        editable: "inline",
+                        filterable: true,
+                        columnMenu: true,
+                        selectable: "single",
+                        pageable: false,
+                        columns: [ {
+                                field: "client",
+                                title: "Client",
+                                locked: true,
+                                lockable: false,
+                                width: 150
+                            }, {
+                                field: "project",
+                                title: "Project",
+                                width: 210
+                            }, {
+                                field: "activity",
+                                title: "Activity",
+                                width: 150
+                            }
+@*                            {
+                                command: ["destroy"],title: "", width: 200, attributes: { style: "text-align: center" } 
+                            }
+*@                        ]
+                    });
+                    var admin = $('#isAdministrator').val();
+                    console.log('admin value is: ',admin);
+                    if (admin) {
+                        toolbar.data("kendoGrid").setOptions({
+                            toolbar: [{ id:'addNew', name: 'addNew', text: 'Add New Activity' }, 'search']
+                        })
+                        $(".k-grid-addNew").click(function(e) {
+                            var modalContainer = document.getElementById("modal-container");
+                   //         console.log('open model is wtf ', openModal);
+                            modalContainer.style.display = "block";
+                            modalContainer.addEventListener("click", function(e) {
+                                if (e.target == modalContainer) {
+                                  modalContainer.style.display = "none";
+                                }
+                            });
+                        });
+                    }
+                    else{
+                        toolbar.data("kendoGrid").setOptions({
+                            toolbar: ['search']
+                        })
+                    }
+                });
+
+
+                $(document).ready(function() {
+                      function onClick(e) {
+                          var button = $(e.event.target).closest(".k-button").attr("id");
+                          if (button == "addButton") {
+                              var grid = $("#axximaGrid").data("kendoGrid");
+                              var selectedItem = grid.dataItem(grid.select());
+                              if (selectedItem == 'undefined' || selectedItem == null) {
+                                  alert('no records selected');
+                                  return;
+                              }
+                              var data = addRemoveAssignmentRecord(selectedItem,'add');
+                              console.log('selected item to add ', selectedItem.activity, ' ', selectedItem.project, ' ', selectedItem.client);
+                          }
+                          if (button == "removeButton") {
+                              var grid = $("#userGrid").data("kendoGrid");
+                              var selectedItem = grid.dataItem(grid.select());
+                              if (selectedItem == 'undefined' || selectedItem == null) {
+                                  alert('no records selected');
+                                  return;
+                              }
+                              var data = addRemoveAssignmentRecord(selectedItem,'remove');
+                              console.log('selected item for removal ', data);
+                          }
+                    }
+                     $("#addButton").kendoButton({
+                         click: onClick
+                
+                    });
+                     $("#removeButton").kendoButton({
+                         click: onClick
+                
+                    });
+
+                })
+        </script>
+
+       @* <div class="container border border-black", style="margin:0;  padding-left:0">*@
+         
+
+           <div class="offset-1">
+            @if (User.IsInRole("Administrator"))
+            {
+                @(Html.Kendo().DropDownList()
+                          .Name("newAxximaUser")
+                          .BindTo(new List<Users>(Model.Users))
+                          .DataValueField("id")
+                          .Enable(false)
+                          .DataTextField("name")
+                          .Value(Model._httpContextAccessor.HttpContext.Session.GetString("currentUser"))                                                                                                                                                                                                                                                                      @*.OptionLabel("Select A User")*@
+                          .Events(e => e.Change("userChanged"))
+                          .HtmlAttributes( new  { style = "width: 20%" }))
+            
+            }
+            </div>
+            @if (!User.IsInRole("Administrator"))
+            {
+                <div style="height:1em"></div>
+            }
+            <div class="row col">
+                <div class="offset-1 col-2">All Activities</div>
+                <div class="offset-5 col-2">Employee Activities</div>
+            </div>
+            <div class="row col" style="overflow-x: scroll; overflow-y: hidden; height:160vh; width:auto" >
+                        <div class="col-4 offset-1">
+                           <div id="axximaGrid" style="height:160vh;  "></div>    
+                        </div>
+                        <div class="col-2 mx-auto">
+                           <div id="spacer1" style="width:100%;  height:20vh; "></div>
+                           <div id="spacer2" style="width:100%; text-align:center;  height:3vh; ">Add Activity</div>
+                           <div id="addButton" style="width:100%;" class="k-button"><span style="font-size:48px;"  class="k-icon k-i-caret-double-alt-right" ></span></div>
+                           <div id="spacer3" style="width:100%; text-align:center; height:10vh; "></div>
+                           <div id="spacer2" style="width:100%; text-align:center;  height:3vh; ">Remove Activity</div>
+                           <div id="removeButton" style="width:100%;  text-align:center;"><span style="width:100%; font-size:48px; text-align:center;"  class="k-icon k-i-caret-double-alt-left" ></span></div>
+                        </div>
+                        <div class="col-4">
+                           <div id="userGrid" style="width:100%; height:160vh"></div>
+                        </div>
+             </div>
+         @*</div>*@
+
+    
+
+<script>
+    function addRemoveAssignmentRecord(e,action) {
+        var id = @Html.Raw(Model._httpContextAccessor.HttpContext.Session.GetString("currentUser"));
+        var baseURL = $('#baseURL').val();
+        var actionURL = action=='remove' ? $('#removeAssignmentURL').val() : $('#addAssignmentURL').val() ;
+        var fullURL = baseURL + actionURL;
+        console.log('full url is: ', fullURL);
+        var data = {
+            Id: id,
+            Client: e.client,
+            Project: e.project,
+            Activity: e.activity
+        };
+        var newData = JSON.stringify(data);
+        console.log('the data isis: ', newData);
+        $.ajax({
+            async: false,
+            url: fullURL,
+            type: 'POST',
+            contentType: "application/json",
+            data: newData,
+        }).done(function(e) {
+                console.log('the action was: ',action);
+                location.reload();
+            }).fail(function(error) {
+                console.log('save error');
+            }).always(function() {
+                console.log('done')
+            });      
+}
+</script>

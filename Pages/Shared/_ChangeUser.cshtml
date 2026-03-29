@@ -1,0 +1,32 @@
+﻿@page
+@model TimeTrackerRepo.Pages.Shared._ChangeUserModel
+@{
+}
+ @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+ @Html.AntiForgeryToken()
+@using TimeTrackerRepo.Models;
+@using Kendo.Mvc.UI;
+
+
+ <form asp-page-handler="changeUser" method="post" id="changeUserForm">
+         <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true">
+    </asp:ScriptManager>
+
+             <input type="hidden" id="monthSelection" name="monthSelection"/>
+             <input type="hidden" id="yearSelection" name="yearSelection"/>
+             <input type="hidden" id="thisSelectedUser" name="thisSelectedUser"/>
+             
+
+            @if (!User.IsInRole("Administrator")){
+                @(Html.Kendo().DropDownList()
+                      .Name("newAxximaUser")
+                      .BindTo(new List<Users>(Model.Users))
+                      .DataValueField("id")
+                      .DataTextField("name")
+                      .Value(Model.selectedUser)                                                                                                                                                                                                                                                                      @*.OptionLabel("Select A User")*@
+                      .Events(e => e.Change("userChanged"))
+                      .HtmlAttributes( new  { style = "width: 20%" }));
+            }
+               <div id="spreadsheet" style="width:100%; height:80vh; "></div>
+               <div id="dialog"></div> 
+    </form>           

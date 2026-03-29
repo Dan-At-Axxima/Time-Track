@@ -1,0 +1,459 @@
+﻿@page
+@model TimeTrackerGrid
+@{
+    ViewData["Title"] = "TimeTracker Batch Entry";
+}
+<h1>@ViewData["Title"]</h1>
+
+
+@Html.HiddenFor(m => m.SelectedActivity, new { @id = "selectedActivity" })
+@Html.HiddenFor(m => m.SelectedActivityDate, new { @id = "selectedActivityDate" })
+@Html.HiddenFor(m => m.IgnoreChange, new { @id = "ignoreChange" })
+@Html.HiddenFor(m => m.Today, new { @id = "defaultDate" })
+@Html.HiddenFor(m => m.Year, new { @id = "year" })
+@Html.HiddenFor(m => m.Month, new { @id = "month" })
+@Html.HiddenFor(m => m.UserName, new { @id = "userName" })
+
+<script>
+    function makenewrow(e) {
+        var name = $('#userName').val();
+    return outPut = " { " + '"UserName"' + ": " + '"' + name  + '"'+ ',' +
+    '"Activity"' + ": " + '"' + e.activity + '"' + ',' + '"Date"' + ": " + '"' + e.date + '"'
+    + ',' +  '"Comment"' + ": " + '"' + e.comment + '"'+  
+     ',' +  '"Hours"' + ": " + '"' + e.hours.hoursValue + '"'+
+     ',' +  '"Minutes"' + ": " + '"' + e.minutes.minutesValue + '"'+
+    " }";
+}
+</script>
+
+
+
+<div id="example">
+    <div class="row">
+        <div class="col-md-5">
+            <input id="activity" value="1"/>
+        </div> 
+ @*       <div  class="col-md-2 " style="text-align:right">
+        Default Date:
+        </div>
+        <div class="col-md-2">
+            <input id="datepicker" title="datepicker" />
+        </div>*@
+    </div>
+    <div id="grid"></div>
+
+    <script>
+
+$(document).ready(function() {
+
+
+    var data =  @Html.Raw(Json.Serialize(Model.Activities));
+
+    $("#activity").kendoDropDownList({
+        dataSource: data,
+        filter: "contains",
+        change: function(e) {
+            $('#selectedActivity').val(this.value());
+            console.log(this.value());
+        },
+        filtering: function(e) {
+        var filter = e.filter;
+      }
+    });
+
+    //$("#datepicker").kendoDatePicker({
+    //    value: $('#defaultDate').val(),
+    //    change: function(e) {
+    //        $('#defaultDate').val(this.value());
+    //        console.log(this.value());
+
+    //    },
+    //    min: setMinimumDate(),
+       
+    // });
+
+        function setMinimumDate(){
+            var month = $('#month').val();
+            var year = $('#year').val();
+            var newDate = new Date(year, month-1, 01);
+            return newDate;
+         } 
+});
+
+      
+</script>
+<script id="template" type="text/x-kendo-template">
+<div class = "col-md-3">
+<a class="k-button k-button-md k-rounded-md k-button-solid k-button-solid-base" href="\#" onclick="return toolbar_click()">Save Records</a>
+</div>
+<div class = "col-offset-5 col-md-1">
+        Default Date:
+</div>
+ <div class="col-md-2">
+        <input id="datepicker" title="datepicker" />
+ </div>
+</script>
+<script>
+function toolbar_click() {
+  console.log("Toolbar command is clicked!");
+    var grid = $("#grid").data("kendoGrid");
+    var ds = grid.dataSource.data().toJSON();
+    console.log(ds);
+    var allRows = grid.items();
+ //
+    var row = allRows[0];
+    for (let i = 0; i < allRows.length; i++) {
+        var row = allRows[i];
+
+    }
+    console.log(allRows);
+    //var ds = grid.dataSource.view();
+    //var output = [];
+    //var row = "'";
+    //var Activity = ds[0].Activity;
+    //var Date = ds[0].date.toJSON("D YYYY-MM-dd");
+    //var hours = ds[0].hours.hoursValue;
+    //var minutes = ds[0].minutes.minutesValue;
+    //var comment = ds[0].comment;
+    //var blah = "[" + '"'  + "activty: " + Activity + ", date: " + Date  + '"' + "," + '"' + "activty: " + Activity + ", date: " + Date + '"' + "]" ;
+    //console.log(blah);
+    //console.log(JSON.parse(blah));
+    //row = '[]'
+    //row = '["name:John, age:30, city:New York","name:John, age:30, city:New York"]'
+    //row += ", Date: " + Date;
+    //row += ", Hours: " + hours;
+    //row += ", Minutes: " + minutes;
+    //row += ", Comment: " + comment +"}" ;
+    //console.log(blah);
+    //var jRow = JSON.parse(row);
+    //console.log(row);
+    //console.log(jRow);
+    //for (let i = 0; i < ds.length; i++) {
+    //    alert(ds[i].Activity + i.toString());
+    //    alert(ds[1].activity);
+        
+    //}
+    //var i = ds.length;
+    //console.log(i);
+
+    //ds.items().each(function(a) {
+    //     console.log(a.Activity);
+    //});
+/* The result can be observed in the DevTools(F12) console of the browser. */
+  return false;
+}
+</script>
+
+<script id="datetemplate" type="text/x-kendo-template">
+ 
+ </script>
+
+<script id="popup_editor" type="text/x-kendo-template">
+    <div class="row">
+        <div class="col-md-2">
+          Activity
+        </div>
+        <div class="col">
+          <textarea disabled id="activity" rows=1 cols=40  data-bind="value: activity"></textarea>
+        </div>
+    </div>
+      <div class="row mt-1">
+        <div class="col-md-2" >
+          Comment
+        </div>
+        <div class="col-md-8">
+          <textarea id="comment" rows=1 cols=40  data-bind="value: comment"></textarea>
+        </div>
+    </div>
+     <div class="row mt-1">
+        <div class="col-md-2">
+          Date:
+        </div>
+        <div class="col-md-6">
+          <input id="date" name="date" data-bind="value: date">
+        </div>
+    </div>
+    <div class="row mt-1">
+        <div class="col-md-2">
+          Hours:
+        </div>
+        <div class="col">
+            <div id="dropDownHours" data-bind="value: hours"> </div>    
+        </div>
+    </div>
+    <div class="row mt-1">
+        <div class="col-md-2" width"50%">
+          Minutes:
+        </div>
+        <div class="col">
+            <div id="dropDownMinutes" data-bind="value: minutes"> </div>        
+        </div>
+   </div>
+ </script>
+ <script>
+$("#dropdownlist").kendoDropDownList({
+  dataSource: [
+    { id: 1, name: "Apples" },
+    { id: 2, name: "Oranges" }
+  ],
+  dataTextField: "name",
+  dataValueField: "id",
+  template: '<span><img src="/img/#: id #.png" alt="#: name #" />#: name #</span>'
+});
+</script>
+
+
+ <script>
+    var data = activities;
+    var nextID = activities.length + 1;
+console.log(nextID);
+
+    function getIndexById(id) {
+        var idx,
+            l = activities.length;
+        for (var j = 0; j < l; j++) {
+            if (data[j].ActivityID == id) {
+                return j;
+            }
+        }
+        return null;
+    }
+
+        var thisDefaultValue = $('#selectedActivity').val();
+        $(document).ready(function () {
+            var dataSource = new kendo.data.DataSource({
+                transport: {
+                    read: function(e) {
+                        e.success(data);
+                    },
+                    update: function(e) {
+                        data[getIndexById(e.data.ActivityID)] = e.data;
+                        e.success();
+                    },
+                    create: function(e) {
+                        e.data.ActivityID = nextID++;
+                        data.push(e.data);
+                        e.success(e.data);
+                    },
+                    destroy: function(e) {
+                        data.splice(getIndexById(e.data.ProductID), 1);
+                        e.success();
+                    }
+                },
+                error: function(e) {
+                    alert("Status: " + e.status + "; Error message: " + e.errorThrown);
+                },
+                batch: false,
+                pageSize: 20,
+                schema: {
+                    model: {
+                        id: "ActivityID",
+                        fields: {
+                            ActivityID: { editable: false, nullable: true },
+                            activity: { type: "string",  defaultValue: thisDefaultValue },
+                            date: { type: "date", format: "{0:yyyy-MM-dd}"},
+                            comment: { type: "string" },
+                            hours: { defaultValue: {hoursID: 0, hoursValue: "0"} },
+                            minutes: { defaultValue: {minutesID: 0, minutesValue: ":00"} }
+                        }
+                    }
+                }
+         });
+          
+           var grid = $("#grid").kendoGrid({
+               toolbar: ["create",
+                   {template: kendo.template($("#template").html())},
+                   { template: kendo.template($("#datetemplate").html()) }
+               ],
+                dataSource: dataSource,
+                edit: function(e) {
+                    if (e.model.isNew() && !e.model.dirty) {
+                         e.container
+                            .find("input[name=activity]").attr("disabled", false);
+                        e.model.set("activity", $('#selectedActivity').val());
+                         e.container
+                            .find("input[name=Activity]").attr("disabled", true);
+                        e.model.set("popupdate", $('#defaultDate').val());
+                        e.model.set("date", $('#defaultDate').val());
+                        var grid = $("#grid").data("kendoGrid");
+                        grid.select("tr:eq(0)");
+                        var ignore = $('#ignoreChange').val();
+                        console.log('selected row');
+                        console.log(ignore);
+                        var newCell = grid.tbody.find("tr").eq(0).find("td").eq(1);
+                        if (ignore == 'false') {
+                            $('#ignoreChange').val('true');
+                            grid.editCell(newCell)
+                        };
+                    }
+                    hoursdropdown(e);
+                    minutesdropdown(e);
+                    setMinimumDate(e);
+
+
+               },
+                pageable: true,
+                height: 550,
+//                toolbar: ["create"],
+                columns: [
+                    { field:"activity",title:"Activity",width:'20%', },
+                    { field: "date", title: "Date", format: "{0:MM/dd/yyyy}", validation: {required: true}, width: "130px" },
+                    { field: "hours", title: "Hours",   editor: hoursDropDownEditor, template: "#=hours.hoursValue#", width:'5em' },
+                    { field: "minutes", title: "Minutes", width: "75px", editor: minutesDropDownEditor, template: "#=minutes.minutesValue#", width:'5em'  },
+                    { field: "comment", title: "Comment", validation: {required: true},editor: textareaEditor,width:'50em', },
+                    { command: ["edit", "destroy"], title: " ", width: "150px" }],
+               editable: {
+                   mode: "popup",
+                   template: kendo.template($("#popup_editor").html())
+               } ,
+               save: function(e) {
+                   var newRecord = e.model.toJSON();
+                   console.log(newRecord.hours.hoursValue);
+                   var newActivity = newRecord.activity;
+                   var newDate = newRecord.date;
+                   var grid = $("#grid").data("kendoGrid");
+                   var ds = grid.dataSource.view().toJSON();
+                   if (ds != 'undefined' && ds.length>0) {
+                       let output = makenewrow(ds[0]);
+
+                       console.log(outPut);
+                       var jsonOutPut = JSON.parse(outPut);
+                       console.log(jsonOutPut);
+                       for (let i = 0; i < ds.length; i++) {
+                           if (ds[i].ActivityID != null) {
+                               var dsActivity = ds[i].activity;
+                               var dsDate = ds[i].date;
+                               console.log(dsActivity, newActivity);
+                               //    console.log(newActivity, newDate);
+                               if (dsActivity === newActivity) {
+                                   console.log(dsActivity);
+                                   alert('This Activity & Date already exists in this Grid');
+                                   e.preventDefault();
+                                   return;
+                               }
+                           }
+                       }
+                       return;
+                   }
+
+               },
+               dataBound: function(e) {
+                   setDatePicker(e);
+               },           
+            });
+        });
+        
+function setDatePicker(e) {
+     $("#datepicker").kendoDatePicker({
+        value: $('#defaultDate').val(),
+        change: function(e) {
+            $('#defaultDate').val(this.value());
+            console.log(this.value());
+            console.log($('#defaultDate').val());
+
+        },
+     //   min: setMinimumDate(),
+       
+     });
+};
+
+         function onDDLChange(e) {
+        var element = e.sender.element;
+        var row = element.closest("tr");
+        var grid = $("#grid").data("kendoGrid");
+        var dataItem = grid.dataItem(row);
+        dataItem.set("value", e.sender.value());
+    };
+
+        function textareaEditor(container, options) {
+    $('<textarea data-bind="value: ' + options.field + '" cols="40" rows="2"></textarea>')
+        .appendTo(container);
+}
+
+        function hoursDropDownEditor(container, options) {
+            var data = [
+                 { "hoursID": 0, "hoursValue": "0" },
+                 { "hoursID": 1, "hoursValue": "1" },
+                 { "hoursID": 2, "hoursValue": "2" },
+                 { "hoursID": 3, "hoursValue": "3" },
+                 { "hoursID": 4, "hoursValue": "4" },
+                 { "hoursID": 5, "hoursValue": "5" },
+                 { "hoursID": 6, "hoursValue": "6" },
+                 { "hoursID": 7, "hoursValue": "7" },
+                 { "hoursID": 8, "hoursValue": "8" },
+                 { "hoursID": 9, "hoursValue": "9" },
+                 { "hoursID": 10, "hoursValue": "10" },
+                 { "hoursID": 11, "hoursValue": "11" },
+                 { "hoursID": 12, "hoursValue": "Go Home You Work Too Much" }
+            ];
+            $('<input required name="' + options.field + '"/>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    autoBind: false,
+                    dataTextField: "hoursValue",
+                    dataValueField: "hoursID",
+                    dataSource: data 
+                });
+        }
+
+         function minutesDropDownEditor(container, options) {
+            var data = [
+                 { "minutesID": 0, "minutesValue": ":00" },
+                 { "minutesID": 1, "minutesValue": ":01" },
+                 { "minutesID": 2, "minutesValue": ":02" },
+                 { "minutesID": 3, "minutesValue": ":03" },
+                 { "minutesID": 4, "minutesValue": ":04" },
+                 { "minutesID": 5, "minutesValue": ":05" },
+                 { "minutesID": 6, "minutesValue": ":06" },
+                 { "minutesID": 7, "minutesValue": ":07" },
+                 { "minutesID": 8, "minutesValue": ":08" },
+                 { "minutesID": 9, "minutesValue": ":09" },
+                 { "minutesID": 10, "minutesValue": ":10" },
+                 { "minutesID": 11, "minutesValue": ":11" },
+                 { "minutesID": 12, "minutesValue": ":12" },
+                 { "minutesID": 13, "minutesValue": ":13" },
+                 { "minutesID": 14, "minutesValue": ":14" },
+                 { "minutesID": 15, "minutesValue": ":15" },
+                 { "minutesID": 16, "minutesValue": ":16" },
+                 { "minutesID": 17, "minutesValue": ":17" },
+                 { "minutesID": 18, "minutesValue": ":18" },
+                 { "minutesID": 19, "minutesValue": ":19" },
+                 { "minutesID": 20, "minutesValue": ":20" },
+                 { "minutesID": 21, "minutesValue": ":21" },
+                 { "minutesID": 22, "minutesValue": ":22" },
+                 { "minutesID": 23, "minutesValue": ":23" },
+                 { "minutesID": 24, "minutesValue": ":24" },
+                 { "minutesID": 25, "minutesValue": ":25" },
+                 { "minutesID": 26, "minutesValue": ":26" },
+                 { "minutesID": 27, "minutesValue": ":27" },
+                 { "minutesID": 28, "minutesValue": ":28" },
+                 { "minutesID": 29, "minutesValue": ":29" },
+                 { "minutesID": 30, "minutesValue": ":30" },
+                 { "minutesID": 4, "minutesValue": ":40" },
+                 { "minutesID": 5, "minutesValue": ":50" }
+
+            ];
+            $('<input required name="' + options.field + '"/>')
+                .appendTo(container)
+                .kendoDropDownList({
+                    autoBind: false,
+                    dataTextField: "minutesValue",
+                    dataValueField: "minutesID",
+                    dataSource: data 
+                });
+        }
+
+         function onChange(arg) {
+            var selected = $.map(this.select(), function(item) {
+                return $(item).text();
+            });
+
+            console.log("Selected: " + selected.length + " item(s), [" + selected.join(", ") + "]");
+        }
+
+
+    </script>
+</div>
+
+
+

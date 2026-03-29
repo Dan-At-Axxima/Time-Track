@@ -1,0 +1,129 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.temp::after {
+    content: none !important;
+}
+
+.k-button {
+    display: block !important;
+    margin: 0 auto;
+    max-width: 50%;
+    background-color: lightblue !important;
+}
+
+  /*  .k-button:hover {
+        background-color: blue !important;
+    }*/
+
+.leftarrow::before {
+    content: "\2190"; /* Unicode character for left arrow */
+    font-size: 48px; /* Set the font size to create a large arrow */
+    color: #000; /* Set the text color */
+}
+
+.rightarrow::before {
+    content: "\2192"; /* Unicode character for left arrow */
+    font-size: 48px; /* Set the font size to create a large arrow */
+    color: #000; /* Set the text color */
+}
+
+.overflow-auto {
+    overflow: auto;
+}
+
+#modal-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Other styles */
+}
+
+.k-diacclog-titlebar {
+    display: none;
+}
+
+ .k-spreadsheet-quick-access-toolbar {
+    display: none !important;
+}
+
+.k-spreadsheet-sheets-bar {
+    display: none !important;
+}
+
+
+
+ /*.k-link {
+     display: none !important
+ }
+*/
+ .k-combobox {
+     display: none !important;
+ }
+
+.k-i-formula-fx {
+    display: none !important;
+}
+
+.k-spreadsheet-formula-bar {
+    display: none !important;
+}
+
+
+.k-tabstrip-items-wrapper {
+    display: none !important;
+}
+
+/* added for extract.cshtml headers */
+#extractTable thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    background-color: #f3f4f6 !important;
+    color: #212529;
+    font-weight: 600;
+    border-bottom: 2px solid #d0d7de;
+    white-space: nowrap;
+}
+
+    #extractTable thead th.sortable:hover {
+        background-color: #e7ebf0 !important;
+    }
+
+    #extractTable thead th.sortable .sort-indicator {
+        display: inline-block;
+        width: 14px;
+        margin-left: 6px;
+        color: #9aa0a6;
+        font-size: 0.75rem;
+    }
+
+    #extractTable thead th.sortable.active-sort {
+        background-color: #dde6f0 !important;
+        color: #000;
+    }
+
+        #extractTable thead th.sortable.active-sort .sort-indicator {
+            color: #495057;
+        }
+/* added for extract.cshtml headers */
+
+
+
