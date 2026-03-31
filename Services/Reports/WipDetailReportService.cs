@@ -1,305 +1,263 @@
 ﻿using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
 using TimeTrackerRepo.Models.Reports;
 
 namespace TimeTrackerRepo.Services.Reports;
 
 public class WipDetailReportService
 {
-    private readonly string _connectionString;
+    private readonly IConfiguration _configuration;
 
     public WipDetailReportService(IConfiguration configuration)
     {
-        _connectionString = configuration.GetConnectionString("TimeTrackerContext")
-            ?? throw new InvalidOperationException("Connection string 'TimeTrackerContext' was not found.");
+        _configuration = configuration;
     }
 
-    public async Task<List<WipDetailReportRow>> GetWipDetailDataAsync(
-        int companyCode,
-        DateTime startDate,
-        DateTime endDate,
-        bool oneClientOnly,
-        string? clientCode)
-    {
-        var rows = new List<WipDetailReportRow>();
-
-        const string sqlQuery = @"
-SELECT *
-FROM [dbo].[TransacdtionEmployeeRates]
-WHERE AxximaCompanyCodes = @companyCode
-  AND [Date] BETWEEN @date1 AND @date2
-ORDER BY Client, Project, Activity, [Employee Number], [Date] ASC";
-
-        await using var conn = new SqlConnection(_connectionString);
-        await conn.OpenAsync();
-
-        await using var cmd = new SqlCommand(sqlQuery, conn);
-        cmd.Parameters.Add(new SqlParameter("@companyCode", companyCode));
-        cmd.Parameters.Add(new SqlParameter("@date1", startDate));
-        cmd.Parameters.Add(new SqlParameter("@date2", endDate));
-
-        await using var reader = await cmd.ExecuteReaderAsync();
-
-        while (await reader.ReadAsync())
-        {
-            var hours = reader.IsDBNull(9) ? string.Empty : reader.GetString(9);
-
-            rows.Add(new WipDetailReportRow
-            {
-                DdaRates = reader.IsDBNull(0) ? 0 : reader.GetDouble(0),
-                AxximaRates = reader.IsDBNull(1) ? 0 : reader.GetDouble(1),
-                FirstName = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-                LastName = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-                EmployeeNumber = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
-                Client = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
-                Project = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
-                Activity = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
-                Date = reader.IsDBNull(8) ? DateTime.MinValue : reader.GetDateTime(8),
-                Hours = hours,
-                DecimalHours = hours,
-                Time = ParseHoursToTimeSpan(hours),
-                Seconds = CalcSeconds(hours, 0),
-                Comment = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
-                SlipId = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
-                Multiple = reader.IsDBNull(12) ? 1.0 : reader.GetDouble(12),
-                AxximaCompanyCodes = reader.IsDBNull(13) ? 0 : reader.GetInt32(13)
-            });
-        }
-
-        if (oneClientOnly && !string.IsNullOrWhiteSpace(clientCode))
-        {
-            rows = rows
-                .Where(x => string.Equals(x.Client, clientCode, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-        }
-
-        return rows;
-    }
-
-    private TimeSpan ParseHoursToTimeSpan(string hours)
-    {
-        if (string.IsNullOrWhiteSpace(hours))
-        {
-            return TimeSpan.Zero;
-        }
-
-        hours = hours.Trim();
-
-        if (hours.Contains(':'))
-        {
-            if (hours.StartsWith(":"))
-            {
-                hours = "0" + hours;
-            }
-
-            return TimeSpan.TryParse(hours, out var ts)
-                ? ts
-                : TimeSpan.Zero;
-        }
-
-        var normalTime = ConvertDecimalTimeToNormal(hours);
-
-        return TimeSpan.TryParse(normalTime, out var converted)
-            ? converted
-            : TimeSpan.Zero;
-    }
-
-    public async Task<List<WipDetailReportRow>> BuildReportDataAsync(
+    public async Task<List<WipDetailReportData>> GetDetailRowsAsync(
         int companyCode,
         DateTime startDate,
         DateTime endDate,
         bool withAllocation,
         bool ifrsOnly,
-        bool oneClientOnly,
-        string? clientCode)
+        bool oneClientOnly = false,
+        string? clientCode = null)
     {
-        var rows = await GetWipDetailDataAsync(
-            companyCode,
-            startDate,
-            endDate,
-            oneClientOnly,
-            clientCode);
+        var data = await GetWipDetailDataAsync(startDate, endDate, oneClientOnly, clientCode);
 
         if (ifrsOnly)
         {
-            rows = rows
-                .Where(x => x.Client == "33707")
-                .ToList();
+            data = data.Where(x => x.Client == "33707").ToList();
         }
 
-        if (rows.Count == 0)
+        if (data.Count == 0)
         {
-            return rows;
+            return data;
         }
 
         if (!oneClientOnly)
         {
             if (withAllocation)
             {
-                rows = await DoAllocationsAsync(rows, companyCode, startDate);
+                var allocations = await GetAllocationsAsync(companyCode);
+
+                var ifrsData = data.Where(x => x.Client == "33707").ToList();
+                var allocatedRows = CreateAllocationsFromWip(allocations, ifrsData);
+
+                data.RemoveAll(x => x.Client == "33707");
+                data = data.Concat(allocatedRows).ToList();
+
+                data.RemoveAll(x => x.AxximaCompanyCodes != companyCode);
+
+                data = data
+                    .OrderBy(x => x.Client)
+                    .ThenBy(x => x.Project)
+                    .ThenBy(x => x.Activity)
+                    .ThenBy(x => x.EmployeeNumber)
+                    .ThenBy(x => x.Date)
+                    .ToList();
             }
         }
         else
         {
-            rows.RemoveAll(x => x.AxximaCompanyCodes != companyCode);
+            data.RemoveAll(x => x.AxximaCompanyCodes != companyCode);
         }
 
-        return rows
-            .OrderBy(x => x.Client)
-            .ThenBy(x => x.Project)
-            .ThenBy(x => x.Activity)
-            .ThenBy(x => x.EmployeeNumber)
-            .ThenBy(x => x.Date)
-            .ToList();
-    }
-
-    internal async Task<List<WipDetailReportRow>> DoAllocationsAsync(
-        IEnumerable<WipDetailReportRow> data,
-        int companyCode,
-        DateTime startDate)
-    {
-        var sourceRows = data?.ToList() ?? new List<WipDetailReportRow>();
-
-        if (sourceRows.Count == 0)
+        foreach (var item in data)
         {
-            return new List<WipDetailReportRow>();
+            item.AxximaRates = CalculateRate(item.AxximaRates, item.Multiple, item.Seconds);
+            item.DdaRates = CalculateRate(item.DdaRates, item.Multiple, item.Seconds);
         }
 
-        var ifrsData = sourceRows
-            .Where(x => x.Client == "33707")
-            .ToList();
-
-        var nonIfrsData = sourceRows
-            .Where(x => x.Client != "33707")
-            .ToList();
-
-        var allocations = await GetAllocationsAsync(companyCode, startDate);
-
-        var allocatedRows = CreateAllocationsFromWip(allocations, ifrsData);
-
-        return nonIfrsData
-            .Concat(allocatedRows)
-            .Where(x => x.AxximaCompanyCodes == companyCode)
-            .OrderBy(x => x.Client)
-            .ThenBy(x => x.Project)
-            .ThenBy(x => x.Activity)
-            .ThenBy(x => x.EmployeeNumber)
-            .ThenBy(x => x.Date)
-            .ToList();
+        return data;
     }
 
-    internal async Task<List<IFRSAllocation>> GetAllocationsAsync(
-        int companyCode,
-        DateTime startDate)
+    private async Task<List<WipDetailReportData>> GetWipDetailDataAsync(
+        DateTime startDate,
+        DateTime endDate,
+        bool oneClientOnly,
+        string? client)
     {
-        var allocations = new List<IFRSAllocation>();
+        var result = new List<WipDetailReportData>();
 
-        const string sqlQuery = @"
-SELECT
-    Client,
-    Project,
-    Activity,
-    Percentage,
-    CompanyCode,
-    [Date]
-FROM IFRSAllocations
-WHERE CompanyCode = @CompanyCode
-  AND YEAR([Date]) = @Year
-  AND MONTH([Date]) = @Month;";
+        var sql = !oneClientOnly
+            ? """
+              SELECT *
+              FROM [dbo].[TransacdtionEmployeeRates]
+              WHERE [Date] BETWEEN @date1 AND @date2
+              ORDER BY Client, Project, Activity, [Employee Number], [Date] ASC
+              """
+            : """
+              SELECT *
+              FROM [dbo].[TransacdtionEmployeeRates]
+              WHERE [Date] BETWEEN @date1 AND @date2
+                AND Client = @client
+              ORDER BY Client, Project, Activity, [Employee Number], [Date] ASC
+              """;
 
-        await using var conn = new SqlConnection(_connectionString);
+        var connectionString = _configuration.GetConnectionString("TimeTrackerContext");
+        await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
 
-        await using var cmd = new SqlCommand(sqlQuery, conn);
-        cmd.Parameters.AddWithValue("@CompanyCode", companyCode);
-        cmd.Parameters.AddWithValue("@Year", startDate.Year);
-        cmd.Parameters.AddWithValue("@Month", startDate.Month);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@date1", startDate);
+        cmd.Parameters.AddWithValue("@date2", endDate);
+
+        if (oneClientOnly)
+        {
+            cmd.Parameters.AddWithValue("@client", client ?? "");
+        }
 
         await using var reader = await cmd.ExecuteReaderAsync();
 
         while (await reader.ReadAsync())
         {
-            allocations.Add(new IFRSAllocation
+            var data = new WipDetailReportData
             {
-                Client = reader["Client"]?.ToString() ?? string.Empty,
-                Project = reader["Project"]?.ToString() ?? string.Empty,
-                Activity = reader["Activity"]?.ToString() ?? string.Empty,
-                Percentage = reader["Percentage"] == DBNull.Value ? 0 : Convert.ToDouble(reader["Percentage"]),
-                CompanyCode = reader["CompanyCode"] == DBNull.Value ? 0 : Convert.ToInt32(reader["CompanyCode"]),
-                Date = reader["Date"] == DBNull.Value ? DateTime.MinValue : Convert.ToDateTime(reader["Date"])
-            });
+                DdaRates = reader.GetDouble(0),
+                AxximaRates = reader.GetDouble(1),
+                FirstName = reader.GetString(2),
+                LastName = reader.GetString(3),
+                EmployeeNumber = reader.GetInt32(4),
+                Client = reader.GetString(5),
+                Project = reader.GetString(6),
+                Activity = reader.GetString(7),
+                Date = reader.GetDateTime(8),
+                Hours = reader.IsDBNull(9) ? "" : reader.GetString(9),
+                Comment = reader.IsDBNull(10) ? "" : reader.GetString(10),
+                SlipId = reader.IsDBNull(11) ? "" : reader.GetString(11),
+                Multiple = reader.GetDouble(12),
+                AxximaCompanyCodes = reader.GetInt32(13)
+            };
+
+            if (!string.IsNullOrWhiteSpace(data.Hours))
+            {
+                data.Seconds = CalcSeconds(data.Hours, 0);
+            }
+
+            result.Add(data);
         }
 
-        return allocations;
+        return result;
     }
 
-    internal List<WipDetailReportRow> CreateAllocationsFromWip(
-        List<IFRSAllocation> allocations,
-        List<WipDetailReportRow> transactions)
+    private static double CalculateRate(double rate, double multiple, double seconds)
     {
-        var newTransactions = new List<WipDetailReportRow>();
-
-        if (transactions == null || transactions.Count == 0)
+        if (rate == 0 || multiple == 0 || seconds == 0)
         {
-            return newTransactions;
+            return 0;
         }
 
-        if (allocations == null || allocations.Count == 0)
+        return (rate / 60d / 60d) * multiple * seconds;
+    }
+
+    private static double CalcSeconds(string hours, double percentage)
+    {
+        var normalized = hours.Trim();
+
+        if (normalized.Contains('.'))
+        {
+            normalized = ConvertDecimalTimeToNormal(normalized);
+        }
+
+        var parts = normalized.Split(':', StringSplitOptions.TrimEntries);
+        if (parts.Length != 2)
+        {
+            return 0;
+        }
+
+        if (!int.TryParse(parts[0], out var hh) || !int.TryParse(parts[1], out var mm))
+        {
+            return 0;
+        }
+
+        var totalMinutes = (hh * 60) + mm;
+
+        if (percentage > 0)
+        {
+            totalMinutes = (int)Math.Round(totalMinutes * (percentage / 100d), MidpointRounding.AwayFromZero);
+        }
+
+        return totalMinutes * 60d;
+    }
+
+    private static string ConvertDecimalTimeToNormal(string input)
+    {
+        if (!decimal.TryParse(input, out var decimalHours))
+        {
+            return "0:00";
+        }
+
+        var hours = (int)Math.Floor(decimalHours);
+        var minutes = (int)Math.Round((decimalHours - hours) * 60m, MidpointRounding.AwayFromZero);
+
+        if (minutes == 60)
+        {
+            hours += 1;
+            minutes = 0;
+        }
+
+        return $"{hours}:{minutes:00}";
+    }
+
+    private async Task<List<IFRSAllocation>> GetAllocationsAsync(int companyCode)
+    {
+        await Task.CompletedTask;
+        return new List<IFRSAllocation>();
+    }
+
+    private List<WipDetailReportData> CreateAllocationsFromWip(
+        List<IFRSAllocation> allocations,
+        List<WipDetailReportData> transactions)
+    {
+        var newTransactions = new List<WipDetailReportData>();
+
+        if (transactions == null || transactions.Count == 0 || allocations.Count == 0)
         {
             return newTransactions;
         }
 
         foreach (var trans in transactions)
         {
-            var normalizedHours = (trans.Hours ?? string.Empty).Trim();
+            var hours = (trans.Hours ?? "").Trim();
 
-            if (normalizedHours.Contains('.'))
+            if (hours.Contains('.'))
             {
-                normalizedHours = ConvertDecimalTimeToNormal(normalizedHours);
+                hours = ConvertDecimalTimeToNormal(hours);
             }
 
-            double totalAllocatedMinutes = 0;
+            var totalMinutesAllocatedSoFar = 0;
 
-            for (int i = 0; i < allocations.Count; i++)
+            for (var i = 0; i < allocations.Count; i++)
             {
-                var allocation = allocations[i];
+                var alloc = allocations[i];
 
-                var transaction = new WipDetailReportRow
+                var transaction = new WipDetailReportData
                 {
                     DdaRates = trans.DdaRates,
-                    EmployeeNumber = trans.EmployeeNumber,
-                    LastName = trans.LastName,
-                    FirstName = trans.FirstName,
-                    AxximaCompanyCodes = allocation.CompanyCode,
                     AxximaRates = trans.AxximaRates,
+                    FirstName = trans.FirstName,
+                    LastName = trans.LastName,
+                    EmployeeNumber = trans.EmployeeNumber,
                     Multiple = trans.Multiple,
-                    Project = allocation.Project,
+                    Project = alloc.Project,
                     Date = trans.Date,
                     Comment = trans.Comment,
-                    Client = allocation.Client,
-                    Activity = allocation.Activity
+                    Client = alloc.Client,
+                    Activity = alloc.Activity,
+                    AxximaCompanyCodes = alloc.CompanyCode
                 };
 
                 if (i == allocations.Count - 1)
                 {
-                    var totalMinutesForEntry = ConvertHoursToMinutes(normalizedHours);
-                    var lastRecordMinutes = totalMinutesForEntry - totalAllocatedMinutes;
-
-                    transaction.Hours = ConvertMinutesToHours(lastRecordMinutes);
-                    transaction.Seconds = CalcSeconds(normalizedHours, allocation.Percentage);
-                    transaction.Time = TimeSpan.FromMinutes(lastRecordMinutes);
-
-                    totalAllocatedMinutes += lastRecordMinutes;
+                    var totalMinutes = ConvertHoursToMinutes(hours);
+                    var lastMinutes = totalMinutes - totalMinutesAllocatedSoFar;
+                    transaction.Hours = ConvertMinutesToHours(lastMinutes);
+                    transaction.Seconds = CalcSeconds(hours, alloc.Percentage);
                 }
                 else
                 {
-                    transaction.Hours = CalcHours(normalizedHours, allocation.Percentage);
-                    transaction.Seconds = CalcSeconds(normalizedHours, allocation.Percentage);
-
-                    var allocatedMinutes = ConvertHoursToMinutes(transaction.Hours);
-                    transaction.Time = TimeSpan.FromMinutes(allocatedMinutes);
-
-                    totalAllocatedMinutes += allocatedMinutes;
+                    transaction.Hours = CalcHours(hours, alloc.Percentage);
+                    transaction.Seconds = CalcSeconds(hours, alloc.Percentage);
+                    totalMinutesAllocatedSoFar += ConvertHoursToMinutes(transaction.Hours);
                 }
 
                 newTransactions.Add(transaction);
@@ -309,80 +267,33 @@ WHERE CompanyCode = @CompanyCode
         return newTransactions;
     }
 
-    private string ConvertDecimalTimeToNormal(string value)
+    private static string CalcHours(string hours, double percentage)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "0:00";
-        }
-
-        if (!double.TryParse(value, out var decimalHours))
-        {
-            return value;
-        }
-
-        var totalMinutes = (int)Math.Round(decimalHours * 60, MidpointRounding.AwayFromZero);
-        return ConvertMinutesToHours(totalMinutes);
-    }
-
-    private string CalcHours(string originalHours, double percentage)
-    {
-        var totalMinutes = ConvertHoursToMinutes(originalHours);
-        var allocatedMinutes = totalMinutes * percentage;
+        var totalMinutes = ConvertHoursToMinutes(hours);
+        var allocatedMinutes = (int)Math.Round(totalMinutes * (percentage / 100d), MidpointRounding.AwayFromZero);
         return ConvertMinutesToHours(allocatedMinutes);
     }
 
-    private double CalcSeconds(string originalHours, double percentage)
+    private static int ConvertHoursToMinutes(string hours)
     {
-        var totalMinutes = ConvertHoursToMinutes(originalHours);
-        var totalSeconds = totalMinutes * 60.0;
-        return totalSeconds * percentage;
-    }
-
-    private int ConvertHoursToMinutes(string hours)
-    {
-        if (string.IsNullOrWhiteSpace(hours))
+        var parts = hours.Split(':', StringSplitOptions.TrimEntries);
+        if (parts.Length != 2)
         {
             return 0;
         }
 
-        hours = hours.Trim();
-
-        if (TimeSpan.TryParse(hours, out var timeSpan))
+        if (!int.TryParse(parts[0], out var hh) || !int.TryParse(parts[1], out var mm))
         {
-            return (int)Math.Round(timeSpan.TotalMinutes, MidpointRounding.AwayFromZero);
+            return 0;
         }
 
-        if (double.TryParse(hours, out var decimalHours))
-        {
-            return (int)Math.Round(decimalHours * 60, MidpointRounding.AwayFromZero);
-        }
-
-        return 0;
+        return (hh * 60) + mm;
     }
 
-    private string ConvertMinutesToHours(double minutes)
+    private static string ConvertMinutesToHours(int minutes)
     {
-        var roundedMinutes = (int)Math.Round(minutes, MidpointRounding.AwayFromZero);
-
-        if (roundedMinutes < 0)
-        {
-            roundedMinutes = 0;
-        }
-
-        var hoursPart = roundedMinutes / 60;
-        var minutesPart = roundedMinutes % 60;
-
-        return $"{hoursPart}:{minutesPart:00}";
-    }
-
-    internal double CalculateRate(
-        double rate,
-        double multiple,
-        TimeSpan time,
-        double seconds)
-    {
-        var hours = seconds > 0 ? seconds / 3600.0 : time.TotalHours;
-        return rate * multiple * hours;
+        var hh = minutes / 60;
+        var mm = minutes % 60;
+        return $"{hh}:{mm:00}";
     }
 }

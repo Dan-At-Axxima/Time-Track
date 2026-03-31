@@ -7,7 +7,7 @@ namespace TimeTrackerRepo.Models.Reports
     {
         public double Multiple { get; set; }
 
-        public double AxximaCompanyCodes { get; set; }
+        public int AxximaCompanyCodes { get; set; }
 
         public double DdaRates { get; set; }
 
@@ -66,8 +66,7 @@ namespace TimeTrackerRepo.Models.Reports
                         tmp = string.Concat("0:0", tmp);
                     }
 
-                    var tmp2 = TimeSpan.Parse(tmp);
-                    return tmp2;
+                    return TimeSpan.Parse(tmp);
                 }
 
                 return new TimeSpan();
@@ -92,9 +91,8 @@ namespace TimeTrackerRepo.Models.Reports
                         tmp = string.Concat("0.0", tmp);
                     }
 
-                    var tmp2 = AddTime(tmp, true);
-                    var tmp3 = new TimeSpan(0, tmp2, 0);
-                    return tmp3;
+                    int totalMinutes = AddTime(tmp, true);
+                    return new TimeSpan(0, totalMinutes, 0);
                 }
 
                 return new TimeSpan();

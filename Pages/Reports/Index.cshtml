@@ -11,7 +11,8 @@
 
     var missingHoursUrl = $"/Reports/MissingHours?startDate={startDateText}&endDate={endDateText}&includeAllocations={includeAllocationsText}";
     var extractUrl = $"/Reports/Extract?startDate={startDateText}&endDate={endDateText}&includeAllocations={includeAllocationsText}";
-    var wipUrl = $"/Reports/Wip?startDate={startDateText}&endDate={endDateText}&withAllocation={includeAllocationsText}";
+    var wipCompany2Url = $"/Reports/Wip?startDate={startDateText}&endDate={endDateText}&withAllocation={includeAllocationsText}&companyCode=2";
+    var wipCompany1Url = $"/Reports/Wip?startDate={startDateText}&endDate={endDateText}&withAllocation={includeAllocationsText}&companyCode=1";
 }
 
 <h2>Reports</h2>
@@ -61,8 +62,12 @@
         Summary
     </a>
 
-    <a class="btn btn-outline-primary rounded-pill px-4" href="@wipUrl">
-        WIP
+    <a class="btn btn-outline-primary rounded-pill px-4" href="@wipCompany2Url">
+        Wip Company 2
+    </a>
+
+    <a class="btn btn-outline-primary rounded-pill px-4" href="@wipCompany1Url">
+        Wip Company 1
     </a>
 
     <a class="btn btn-outline-primary rounded-pill px-4" href="@missingHoursUrl">

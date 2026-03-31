@@ -1,32 +1,41 @@
-﻿namespace TimeTrackerRepo.Models.Reports;
+﻿using System;
 
-public class WipDetailReportRow
+namespace TimeTrackerRepo.Models.Reports
 {
-    public string Client { get; set; } = string.Empty;
-    public string Project { get; set; } = string.Empty;
-    public string Activity { get; set; } = string.Empty;
+    public enum WipRowType
+    {
+        Detail,
+        AssociateTotal,
+        ActivityTotal,
+        ClientTotal,
+        GrandTotal
+    }
 
-    public int EmployeeNumber { get; set; }
-    public int AxximaCompanyCodes { get; set; }
+    public class WipDetailReportRow : WipDetailReportData
+    {
+        public WipRowType RowType { get; set; }
 
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+        public string Associate { get; set; } = string.Empty;
 
-    public DateTime Date { get; set; }
+        public double AxximaAmount { get; set; }
 
-    public string Hours { get; set; } = string.Empty;
-    public TimeSpan Time { get; set; } = TimeSpan.Zero;
-    public double Seconds { get; set; }
+        public string TimeDecimal { get; set; } = "0.000000";
 
-    public double DdaRates { get; set; }
-    public double AxximaRates { get; set; }
-    public double Multiple { get; set; } = 1.0;
+        public string Label { get; set; } = string.Empty;
 
-    public string Comment { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
+        public bool IsTotalRow => RowType != WipRowType.Detail;
 
-    public string EmployeeName =>
-        $"{FirstName} {LastName}".Trim();
-    public string DecimalHours { get; set; } = string.Empty;
-    public string SlipId { get; set; } = string.Empty;
+        public string DisplayClientProject
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(Project) && string.IsNullOrWhiteSpace(Client))
+                {
+                    return string.Empty;
+                }
+
+                return $"{Project}:{Client}";
+            }
+        }
+    }
 }
