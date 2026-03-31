@@ -3,7 +3,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrator")]
 
 @{
-    ViewData["Title"] = "Axxima WIP Detail Report";
+    ViewData["Title"] = Model.ReportTitle;
 }
 
 <style>
@@ -15,9 +15,26 @@
         .wip-report-table td:nth-child(7) {
             white-space: normal;
         }
+
+    .wip-divider td {
+        border-top: 2px solid #6c757d !important;
+        padding: 0 !important;
+        height: 0.35rem;
+        background: #fff;
+    }
+
+    .wip-total-row td {
+        font-weight: 600;
+        background-color: #f8f9fa;
+    }
+
+    .wip-grand-total td {
+        font-weight: 700;
+        background-color: #e9ecef;
+    }
 </style>
 
-<h2>Axxima WIP Detail Report</h2>
+<h2>@Model.ReportTitle</h2>
 
 <div class="text-muted mb-3">
     Period: @Model.StartDate.ToString("yyyy-MM-dd") to @Model.EndDate.ToString("yyyy-MM-dd")
@@ -33,6 +50,20 @@
 
 @if (Model.Rows.Count > 0)
 {
+    <div class="mb-3">
+        <form method="post" asp-page-handler="Export" class="d-inline">
+            <input type="hidden" name="StartDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="EndDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
+            <input type="hidden" name="WithAllocation" value="@Model.WithAllocation" />
+            <input type="hidden" name="IFRSOnly" value="@Model.IFRSOnly" />
+            <input type="hidden" name="CompanyCode" value="@Model.CompanyCode" />
+
+            <button type="submit" class="btn btn-primary">
+                Export to Excel
+            </button>
+        </form>
+    </div>
+
     <div class="table-responsive">
         <table class="table table-sm table-bordered align-middle wip-report-table">
             <thead class="table-light">
@@ -44,12 +75,149 @@
                     <th class="text-end">Time Spent</th>
                     <th class="text-end">Axxima Rates</th>
                     <th>Description</th>
-                    <th>Slip ID</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach (var row in Model.Rows)
+                @{
+                    var orderedRows = Model.Rows
+                    .OrderBy(x => x.Client)
+                    .ThenBy(x => x.Project)
+                    .ThenBy(x => x.Activity)
+                    .ThenBy(x => x.EmployeeNumber)
+                    .ThenBy(x => x.Date)
+                    .ToList();
+
+                    string? currentClient = null;
+                    string? currentActivity = null;
+                    int? currentEmployee = null;
+
+                    double assocSeconds = 0;
+                    double activitySeconds = 0;
+                    double clientSeconds = 0;
+                    double grandSeconds = 0;
+
+                    double assocAxxima = 0;
+                    double activityAxxima = 0;
+                    double clientAxxima = 0;
+                    double grandAxxima = 0;
+
+                    void ResetAssociateTotals()
+                    {
+                        assocSeconds = 0;
+                        assocAxxima = 0;
+                    }
+
+                    void ResetActivityTotals()
+                    {
+                        activitySeconds = 0;
+                        activityAxxima = 0;
+                    }
+
+                    void ResetClientTotals()
+                    {
+                        clientSeconds = 0;
+                        clientAxxima = 0;
+                    }
+                }
+
+                @for (int i = 0; i < orderedRows.Count; i++)
                 {
+                    var row = orderedRows[i];
+
+                    if (currentClient is null)
+                    {
+                        currentClient = row.Client;
+                        currentActivity = row.Activity;
+                        currentEmployee = row.EmployeeNumber;
+                    }
+
+                    var clientChanged = currentClient != row.Client;
+                    var activityChanged = !clientChanged && currentActivity != row.Activity;
+                    var employeeChanged = !clientChanged && !activityChanged && currentEmployee != row.EmployeeNumber;
+
+                    if (clientChanged)
+                    {
+                        <tr class="wip-divider"><td colspan="7"></td></tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Associate Total</td>
+                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
+                            <td class="text-end">@assocAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Activity Total</td>
+                            <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
+                            <td class="text-end">@activityAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Client Total</td>
+                            <td class="text-end">@CalcDecimalTime(clientSeconds)</td>
+                            <td class="text-end">@clientAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+
+                        ResetAssociateTotals();
+                        ResetActivityTotals();
+                        ResetClientTotals();
+
+                        currentClient = row.Client;
+                        currentActivity = row.Activity;
+                        currentEmployee = row.EmployeeNumber;
+                    }
+                    else if (activityChanged)
+                    {
+                        <tr class="wip-divider"><td colspan="7"></td></tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Associate Total</td>
+                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
+                            <td class="text-end">@assocAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Activity Total</td>
+                            <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
+                            <td class="text-end">@activityAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+
+                        ResetAssociateTotals();
+                        ResetActivityTotals();
+
+                        currentActivity = row.Activity;
+                        currentEmployee = row.EmployeeNumber;
+                    }
+                    else if (employeeChanged)
+                    {
+                        <tr class="wip-divider"><td colspan="7"></td></tr>
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>Associate Total</td>
+                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
+                            <td class="text-end">@assocAxxima.ToString("N2")</td>
+                            <td></td>
+                        </tr>
+
+                        ResetAssociateTotals();
+
+                        currentEmployee = row.EmployeeNumber;
+                    }
+
+                    assocSeconds += row.Seconds;
+                    activitySeconds += row.Seconds;
+                    clientSeconds += row.Seconds;
+                    grandSeconds += row.Seconds;
+
+                    assocAxxima += row.AxximaRates;
+                    activityAxxima += row.AxximaRates;
+                    clientAxxima += row.AxximaRates;
+                    grandAxxima += row.AxximaRates;
+
                     <tr>
                         <td>@($"{row.Project}:{row.Client}")</td>
                         <td>@row.Activity</td>
@@ -58,7 +226,39 @@
                         <td class="text-end">@CalcDecimalTime(row.Seconds)</td>
                         <td class="text-end">@row.AxximaRates.ToString("N2")</td>
                         <td>@row.Comment</td>
-                        <td>@row.SlipId</td>
+                    </tr>
+                }
+
+                @if (orderedRows.Count > 0)
+                {
+                    <tr class="wip-divider"><td colspan="7"></td></tr>
+                    <tr class="wip-total-row">
+                        <td colspan="3"></td>
+                        <td>Associate Total</td>
+                        <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
+                        <td class="text-end">@assocAxxima.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                    <tr class="wip-total-row">
+                        <td colspan="3"></td>
+                        <td>Activity Total</td>
+                        <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
+                        <td class="text-end">@activityAxxima.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                    <tr class="wip-total-row">
+                        <td colspan="3"></td>
+                        <td>Client Total</td>
+                        <td class="text-end">@CalcDecimalTime(clientSeconds)</td>
+                        <td class="text-end">@clientAxxima.ToString("N2")</td>
+                        <td></td>
+                    </tr>
+                    <tr class="wip-grand-total">
+                        <td colspan="3"></td>
+                        <td>Grand Total</td>
+                        <td class="text-end">@CalcDecimalTime(grandSeconds)</td>
+                        <td class="text-end">@grandAxxima.ToString("N2")</td>
+                        <td></td>
                     </tr>
                 }
             </tbody>

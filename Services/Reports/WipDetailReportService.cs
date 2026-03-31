@@ -151,32 +151,60 @@ public class WipDetailReportService
 
     private static double CalcSeconds(string hours, double percentage)
     {
+        if (string.IsNullOrWhiteSpace(hours))
+        {
+            return 0;
+        }
+
         var normalized = hours.Trim();
 
-        if (normalized.Contains('.'))
-        {
-            normalized = ConvertDecimalTimeToNormal(normalized);
-        }
+        double totalMinutes;
 
-        var parts = normalized.Split(':', StringSplitOptions.TrimEntries);
-        if (parts.Length != 2)
+        if (normalized.Contains(":"))
         {
-            return 0;
-        }
+            if (normalized.StartsWith(":"))
+            {
+                normalized = "0" + normalized;
+            }
 
-        if (!int.TryParse(parts[0], out var hh) || !int.TryParse(parts[1], out var mm))
+            var parts = normalized.Split(':', StringSplitOptions.TrimEntries);
+            if (parts.Length != 2)
+            {
+                return 0;
+            }
+
+            if (!int.TryParse(parts[0], out var hh))
+            {
+                hh = 0;
+            }
+
+            if (!int.TryParse(parts[1], out var mm))
+            {
+                return 0;
+            }
+
+            totalMinutes = (hh * 60) + mm;
+        }
+        else
         {
-            return 0;
-        }
+            if (!double.TryParse(normalized, out var decimalHours))
+            {
+                return 0;
+            }
 
-        var totalMinutes = (hh * 60) + mm;
+            totalMinutes = decimalHours * 60.0;
+        }
 
         if (percentage > 0)
         {
-            totalMinutes = (int)Math.Round(totalMinutes * (percentage / 100d), MidpointRounding.AwayFromZero);
+            totalMinutes = Math.Round(totalMinutes * (percentage / 100.0), MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            totalMinutes = Math.Round(totalMinutes, MidpointRounding.AwayFromZero);
         }
 
-        return totalMinutes * 60d;
+        return totalMinutes * 60.0;
     }
 
     private static string ConvertDecimalTimeToNormal(string input)

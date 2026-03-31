@@ -10,10 +10,14 @@ namespace TimeTrackerRepo.Pages.Reports;
 public class WipModel : PageModel
 {
     private readonly WipDetailReportService _service;
+    private readonly WipDetailExcelExporter _exporter;
 
-    public WipModel(WipDetailReportService service)
+    public WipModel(
+        WipDetailReportService service,
+        WipDetailExcelExporter exporter)
     {
         _service = service;
+        _exporter = exporter;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -36,9 +40,59 @@ public class WipModel : PageModel
     public string StatusMessage { get; set; } = string.Empty;
 
     public string ReportTitle =>
-        CompanyCode == 1 ? "WIP Company 1" : "WIP Company 2";
+        CompanyCode == 1
+            ? "AXXIMA WIP DETAIL REPORT"
+            : "330 WIP DETAIL REPORT";
 
     public async Task OnGetAsync()
+    {
+        SetDefaults();
+
+        Rows = await _service.GetDetailRowsAsync(
+            companyCode: CompanyCode,
+            startDate: StartDate,
+            endDate: EndDate,
+            withAllocation: WithAllocation,
+            ifrsOnly: IFRSOnly,
+            oneClientOnly: false,
+            clientCode: null);
+
+        StatusMessage = $"{Rows.Count} detail rows loaded.";
+    }
+
+    public async Task<IActionResult> OnPostExportAsync()
+    {
+        SetDefaults();
+
+        var rows = await _service.GetDetailRowsAsync(
+            companyCode: CompanyCode,
+            startDate: StartDate,
+            endDate: EndDate,
+            withAllocation: WithAllocation,
+            ifrsOnly: IFRSOnly,
+            oneClientOnly: false,
+            clientCode: null);
+
+        if (rows.Count == 0)
+        {
+            Rows = rows;
+            StatusMessage = "No records found for the selected criteria.";
+            return Page();
+        }
+
+        var fileBytes = _exporter.ExportSingleCompanyReport(ReportTitle, rows);
+
+        var fileName = CompanyCode == 1
+            ? $"WipDetail_Axxima_{DateTime.Now:yyyyMMddHHmmss}.xlsx"
+            : $"WipDetail_330_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
+
+        return File(
+            fileBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
+    }
+
+    private void SetDefaults()
     {
         if (StartDate == default)
         {
@@ -54,16 +108,5 @@ public class WipModel : PageModel
         {
             CompanyCode = 2;
         }
-
-        Rows = await _service.GetDetailRowsAsync(
-            companyCode: CompanyCode,
-            startDate: StartDate,
-            endDate: EndDate,
-            withAllocation: WithAllocation,
-            ifrsOnly: IFRSOnly,
-            oneClientOnly: false,
-            clientCode: null);
-
-        StatusMessage = $"{Rows.Count} detail rows loaded.";
     }
 }
