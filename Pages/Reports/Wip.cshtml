@@ -51,17 +51,15 @@
 @if (Model.Rows.Count > 0)
 {
     <div class="mb-3">
-        <form method="post" asp-page-handler="Export" class="d-inline">
-            <input type="hidden" name="StartDate" value="@Model.StartDate.ToString("yyyy-MM-dd")" />
-            <input type="hidden" name="EndDate" value="@Model.EndDate.ToString("yyyy-MM-dd")" />
-            <input type="hidden" name="WithAllocation" value="@Model.WithAllocation" />
-            <input type="hidden" name="IFRSOnly" value="@Model.IFRSOnly" />
-            <input type="hidden" name="CompanyCode" value="@Model.CompanyCode" />
-
-            <button type="submit" class="btn btn-primary">
-                Export to Excel
-            </button>
-        </form>
+        <a asp-page-handler="Export"
+           asp-route-StartDate="@Model.StartDate.ToString("yyyy-MM-dd")"
+           asp-route-EndDate="@Model.EndDate.ToString("yyyy-MM-dd")"
+           asp-route-WithAllocation="@Model.WithAllocation"
+           asp-route-IFRSOnly="@Model.IFRSOnly"
+           asp-route-CompanyCode="@Model.CompanyCode"
+           class="btn btn-primary">
+            Export Excel
+        </a>
     </div>
 
     <div class="table-responsive">
@@ -78,188 +76,68 @@
                 </tr>
             </thead>
             <tbody>
-                @{
-                    var orderedRows = Model.Rows
-                    .OrderBy(x => x.Client)
-                    .ThenBy(x => x.Project)
-                    .ThenBy(x => x.Activity)
-                    .ThenBy(x => x.EmployeeNumber)
-                    .ThenBy(x => x.Date)
-                    .ToList();
-
-                    string? currentClient = null;
-                    string? currentActivity = null;
-                    int? currentEmployee = null;
-
-                    double assocSeconds = 0;
-                    double activitySeconds = 0;
-                    double clientSeconds = 0;
-                    double grandSeconds = 0;
-
-                    double assocAxxima = 0;
-                    double activityAxxima = 0;
-                    double clientAxxima = 0;
-                    double grandAxxima = 0;
-
-                    void ResetAssociateTotals()
-                    {
-                        assocSeconds = 0;
-                        assocAxxima = 0;
-                    }
-
-                    void ResetActivityTotals()
-                    {
-                        activitySeconds = 0;
-                        activityAxxima = 0;
-                    }
-
-                    void ResetClientTotals()
-                    {
-                        clientSeconds = 0;
-                        clientAxxima = 0;
-                    }
-                }
-
-                @for (int i = 0; i < orderedRows.Count; i++)
+                @foreach (var row in Model.DisplayRows)
                 {
-                    var row = orderedRows[i];
-
-                    if (currentClient is null)
-                    {
-                        currentClient = row.Client;
-                        currentActivity = row.Activity;
-                        currentEmployee = row.EmployeeNumber;
-                    }
-
-                    var clientChanged = currentClient != row.Client;
-                    var activityChanged = !clientChanged && currentActivity != row.Activity;
-                    var employeeChanged = !clientChanged && !activityChanged && currentEmployee != row.EmployeeNumber;
-
-                    if (clientChanged)
+                    if (row.RowType == TimeTrackerRepo.Models.Reports.WipDisplayRowType.Divider)
                     {
                         <tr class="wip-divider"><td colspan="7"></td></tr>
-                        <tr class="wip-total-row">
-                            <td colspan="3"></td>
-                            <td>Associate Total</td>
-                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
-                            <td class="text-end">@assocAxxima.ToString("N2")</td>
-                            <td></td>
-                        </tr>
-                        <tr class="wip-total-row">
-                            <td colspan="3"></td>
-                            <td>Activity Total</td>
-                            <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
-                            <td class="text-end">@activityAxxima.ToString("N2")</td>
-                            <td></td>
-                        </tr>
-                        <tr class="wip-total-row">
-                            <td colspan="3"></td>
-                            <td>Client Total</td>
-                            <td class="text-end">@CalcDecimalTime(clientSeconds)</td>
-                            <td class="text-end">@clientAxxima.ToString("N2")</td>
-                            <td></td>
-                        </tr>
-
-                        ResetAssociateTotals();
-                        ResetActivityTotals();
-                        ResetClientTotals();
-
-                        currentClient = row.Client;
-                        currentActivity = row.Activity;
-                        currentEmployee = row.EmployeeNumber;
                     }
-                    else if (activityChanged)
+                    else if (row.RowType == TimeTrackerRepo.Models.Reports.WipDisplayRowType.Detail)
                     {
-                        <tr class="wip-divider"><td colspan="7"></td></tr>
-                        <tr class="wip-total-row">
-                            <td colspan="3"></td>
-                            <td>Associate Total</td>
-                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
-                            <td class="text-end">@assocAxxima.ToString("N2")</td>
-                            <td></td>
+                        <tr>
+                            <td>@row.ClientProject</td>
+                            <td>@row.Activity</td>
+                            <td>@row.Associate</td>
+                            <td>@row.DateText</td>
+                            <td class="text-end">
+                                @{
+                                    var t = row.TimeText;
+                                    var i = t?.IndexOf('.') ?? -1;
+                                    @((i >= 0 && t.Length > i + 3) ? t.Substring(0, i + 3) : t)
+                                }
+                            </td>
+                            <td class="text-end">@row.AmountText</td>
+                            <td>@row.Description</td>
                         </tr>
-                        <tr class="wip-total-row">
-                            <td colspan="3"></td>
-                            <td>Activity Total</td>
-                            <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
-                            <td class="text-end">@activityAxxima.ToString("N2")</td>
-                            <td></td>
-                        </tr>
-
-                        ResetAssociateTotals();
-                        ResetActivityTotals();
-
-                        currentActivity = row.Activity;
-                        currentEmployee = row.EmployeeNumber;
                     }
-                    else if (employeeChanged)
+                    else if (row.RowType == TimeTrackerRepo.Models.Reports.WipDisplayRowType.GrandTotal)
                     {
-                        <tr class="wip-divider"><td colspan="7"></td></tr>
-                        <tr class="wip-total-row">
+                        <tr class="wip-grand-total">
                             <td colspan="3"></td>
-                            <td>Associate Total</td>
-                            <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
-                            <td class="text-end">@assocAxxima.ToString("N2")</td>
+                            <td>@row.Label</td>
+                            <td class="text-end">
+                                @{
+                                    var t = row.TimeText;
+                                    var i = t?.IndexOf('.') ?? -1;
+                                    @((i >= 0 && t.Length > i + 3) ? t.Substring(0, i + 3) : t)
+                                }
+                            </td>
+                            <td class="text-end">@row.AmountText</td>
                             <td></td>
                         </tr>
 
-                        ResetAssociateTotals();
-
-                        currentEmployee = row.EmployeeNumber;
+                        <!-- spacer row -->
+                        <tr><td colspan="7">&nbsp;</td></tr>
                     }
+                    else
+                    {
+                        <tr class="wip-total-row">
+                            <td colspan="3"></td>
+                            <td>@row.Label</td>
+                            <td class="text-end">
+                                @{
+                                    var t = row.TimeText;
+                                    var i = t?.IndexOf('.') ?? -1;
+                                    @((i >= 0 && t.Length > i + 3) ? t.Substring(0, i + 3) : t)
+                                }
+                            </td>
+                            <td class="text-end">@row.AmountText</td>
+                            <td></td>
+                        </tr>
 
-                    assocSeconds += row.Seconds;
-                    activitySeconds += row.Seconds;
-                    clientSeconds += row.Seconds;
-                    grandSeconds += row.Seconds;
-
-                    assocAxxima += row.AxximaRates;
-                    activityAxxima += row.AxximaRates;
-                    clientAxxima += row.AxximaRates;
-                    grandAxxima += row.AxximaRates;
-
-                    <tr>
-                        <td>@($"{row.Project}:{row.Client}")</td>
-                        <td>@row.Activity</td>
-                        <td>@row.LastName</td>
-                        <td>@row.Date.ToString("M/d/yyyy")</td>
-                        <td class="text-end">@CalcDecimalTime(row.Seconds)</td>
-                        <td class="text-end">@row.AxximaRates.ToString("N2")</td>
-                        <td>@row.Comment</td>
-                    </tr>
-                }
-
-                @if (orderedRows.Count > 0)
-                {
-                    <tr class="wip-divider"><td colspan="7"></td></tr>
-                    <tr class="wip-total-row">
-                        <td colspan="3"></td>
-                        <td>Associate Total</td>
-                        <td class="text-end">@CalcDecimalTime(assocSeconds)</td>
-                        <td class="text-end">@assocAxxima.ToString("N2")</td>
-                        <td></td>
-                    </tr>
-                    <tr class="wip-total-row">
-                        <td colspan="3"></td>
-                        <td>Activity Total</td>
-                        <td class="text-end">@CalcDecimalTime(activitySeconds)</td>
-                        <td class="text-end">@activityAxxima.ToString("N2")</td>
-                        <td></td>
-                    </tr>
-                    <tr class="wip-total-row">
-                        <td colspan="3"></td>
-                        <td>Client Total</td>
-                        <td class="text-end">@CalcDecimalTime(clientSeconds)</td>
-                        <td class="text-end">@clientAxxima.ToString("N2")</td>
-                        <td></td>
-                    </tr>
-                    <tr class="wip-grand-total">
-                        <td colspan="3"></td>
-                        <td>Grand Total</td>
-                        <td class="text-end">@CalcDecimalTime(grandSeconds)</td>
-                        <td class="text-end">@grandAxxima.ToString("N2")</td>
-                        <td></td>
-                    </tr>
+                        <!-- spacer row -->
+                        <tr><td colspan="7">&nbsp;</td></tr>
+                    }
                 }
             </tbody>
         </table>
@@ -270,15 +148,4 @@ else
     <div class="alert alert-warning">
         No records found for the selected criteria.
     </div>
-}
-
-@functions {
-    private static string CalcDecimalTime(double seconds)
-    {
-        int h = (int)(seconds / 3600);
-        int remainingSeconds = (int)(seconds - (h * 3600));
-        double fractionalHours = (double)remainingSeconds / 3600;
-        double value = h + fractionalHours;
-        return value.ToString("0.000000");
-    }
 }

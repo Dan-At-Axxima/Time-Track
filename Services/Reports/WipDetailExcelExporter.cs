@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using ClosedXML.Excel;
 using TimeTrackerRepo.Models.Reports;
 
@@ -9,17 +8,22 @@ namespace TimeTrackerRepo.Services.Reports
 {
     public class WipDetailExcelExporter
     {
-        public byte[] ExportSingleCompanyReport(string reportTitle, List<WipDetailReportData> rows)
+        public byte[] ExportSingleCompanyReport(string reportTitle, List<WipDisplayRow> rows)
         {
             using var workbook = new XLWorkbook();
             var ws = workbook.Worksheets.Add("WIP Detail");
-
+            ws.Column(1).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(5).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(6).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
             GenerateHeader(ws, reportTitle);
-            GenerateDetail(ws, rows);
-
+            GenerateBody(ws, rows ?? new List<WipDisplayRow>());
             ws.PageSetup.PagesWide = 1;
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
 
+         //   ws.Rows().AdjustToContents();
             using var stream = new MemoryStream();
             workbook.SaveAs(stream);
             return stream.ToArray();
@@ -27,7 +31,6 @@ namespace TimeTrackerRepo.Services.Reports
 
         private void GenerateHeader(IXLWorksheet ws, string reportTitle)
         {
-            // Match legacy widths as closely as possible
             ws.Column(1).Width = 50.71;
             ws.Column(2).Width = 34.14;
             ws.Column(3).Width = 10.86;
@@ -58,256 +61,127 @@ namespace TimeTrackerRepo.Services.Reports
             ws.Range("A3:G4").Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             ws.Range("A3:G4").Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
 
-            GenerateLine(ws, 4);
+            ws.Range("A4:G4").Style.Border.BottomBorder = XLBorderStyleValues.Thin;
         }
 
-        private void GenerateDetail(IXLWorksheet ws, List<WipDetailReportData> rows)
+        private void GenerateBody(IXLWorksheet ws, List<WipDisplayRow> rows)
         {
-            var orderedRows = rows
-                .OrderBy(x => x.Client)
-                .ThenBy(x => x.Project)
-                .ThenBy(x => x.Activity)
-                .ThenBy(x => x.EmployeeNumber)
-                .ThenBy(x => x.Date)
-                .ToList();
+            var rowNumber = 5;
 
-            string? currentClient = null;
-            string? currentActivity = null;
-            int? currentEmployee = null;
-
-            double assocSeconds = 0;
-            double activitySeconds = 0;
-            double clientSeconds = 0;
-            double grandSeconds = 0;
-
-            double assocAxxima = 0;
-            double activityAxxima = 0;
-            double clientAxxima = 0;
-            double grandAxxima = 0;
-
-            int row = 5;
-
-            void ResetAssociateTotals()
+            foreach (var row in rows)
             {
-                assocSeconds = 0;
-                assocAxxima = 0;
-            }
-
-            void ResetActivityTotals()
-            {
-                activitySeconds = 0;
-                activityAxxima = 0;
-            }
-
-            void ResetClientTotals()
-            {
-                clientSeconds = 0;
-                clientAxxima = 0;
-            }
-
-            for (int i = 0; i < orderedRows.Count; i++)
-            {
-                var item = orderedRows[i];
-
-                if (currentClient is null)
+                switch (row.RowType)
                 {
-                    currentClient = item.Client;
-                    currentActivity = item.Activity;
-                    currentEmployee = item.EmployeeNumber;
+                    case WipDisplayRowType.Divider:
+                        // Render exactly one divider row, then move to the next row.
+                        ws.Range(rowNumber, 1, rowNumber, 7).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
+                        rowNumber++;
+                        break;
+
+                    case WipDisplayRowType.Detail:
+                        ws.Cell(rowNumber, 1).Value = row.ClientProject ?? string.Empty;
+                        ws.Cell(rowNumber, 2).Value = row.Activity ?? string.Empty;
+                        ws.Cell(rowNumber, 3).Value = row.Associate ?? string.Empty;
+                        ws.Cell(rowNumber, 4).Value = row.DateText ?? string.Empty;
+
+                        var txt = row.TimeText;
+                        var dot = txt?.IndexOf('.') ?? -1;
+
+                        if (dot >= 0 && txt.Length > dot + 3)
+                        {
+                            txt = txt.Substring(0, dot + 3);
+                        }
+
+                        if (decimal.TryParse(row.TimeText, out var totalTime))
+                        {
+                            ws.Cell(rowNumber, 5).Value = totalTime;
+                            ws.Cell(rowNumber, 5).Style.NumberFormat.Format = "#,##0.00";
+                        }
+                        else
+                        {
+                            ws.Cell(rowNumber, 5).Value = row.TimeText ?? string.Empty;
+                        }
+                        if (decimal.TryParse(row.AmountText, out var totalAmount))
+                        {
+                            ws.Cell(rowNumber, 6).Value = totalAmount;
+                            ws.Cell(rowNumber, 6).Style.NumberFormat.Format = "#,##0.00";
+                        }
+                        else
+                        {
+                            ws.Cell(rowNumber, 6).Value = row.AmountText ?? string.Empty;
+                        }
+                        var comment = (row.Description ?? string.Empty)
+    .Replace("\r\n", " ")
+    .Replace("\n", " ")
+    .Replace("\r", " ")
+    .Trim();
+
+                        while (comment.Contains("  "))
+                        {
+                            comment = comment.Replace("  ", " ");
+                        }
+
+                        var text = comment ?? string.Empty;
+
+                        ws.Cell(rowNumber, 7).Value = text;
+                        ws.Cell(rowNumber, 7).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+
+                        if (text.Length > 100)
+                        {
+                            ws.Cell(rowNumber, 7).Style.Alignment.WrapText = true;
+
+                            int lineCount = (int)Math.Ceiling(text.Length / 100.0);
+                            ws.Row(rowNumber).Height = Math.Max(15, lineCount * 15);
+                        }
+                        else
+                        {
+                            ws.Cell(rowNumber, 7).Style.Alignment.WrapText = false;
+                            ws.Row(rowNumber).Height = 15;
+                        }
+                        //   ws.Row(rowNumber).AdjustToContents();
+                        //     ws.Row(rowNumber).AdjustToContents();
+
+
+                        rowNumber++;
+                        break;
+
+                    case WipDisplayRowType.AssociateTotal:
+                    case WipDisplayRowType.ActivityTotal:
+                    case WipDisplayRowType.ClientTotal:
+                    case WipDisplayRowType.GrandTotal:
+                        ws.Cell(rowNumber, 4).Value = row.Label ?? string.Empty;
+
+                        if (decimal.TryParse(row.TimeText, out var totalTime1))
+                        {
+                            ws.Cell(rowNumber, 5).Value = totalTime1;
+                            ws.Cell(rowNumber, 5).Style.NumberFormat.Format = "#,##0.00";
+                        }
+                        else
+                        {
+                            ws.Cell(rowNumber, 5).Value = row.TimeText ?? string.Empty;
+                        }
+
+                        if (decimal.TryParse(row.AmountText, out var amount))
+                        {
+                            ws.Cell(rowNumber, 6).Value = amount;
+                            ws.Cell(rowNumber, 6).Style.NumberFormat.Format = "#,##0.00";
+                        }
+                        else
+                        {
+                            ws.Cell(rowNumber, 6).Value = row.AmountText ?? string.Empty;
+                        }
+
+                        rowNumber++;          // existing line (move to next row)
+
+                        // 👇 ADD THIS
+                        ws.Row(rowNumber).Height = 8;  // optional but nice
+                        rowNumber++;          // blank spacer row
+
+                        break;
                 }
-
-                var clientChanged = currentClient != item.Client;
-                var activityChanged = !clientChanged && currentActivity != item.Activity;
-                var employeeChanged = !clientChanged && !activityChanged && currentEmployee != item.EmployeeNumber;
-
-                if (clientChanged)
-                {
-                    row = WriteDivider(ws, row);
-                    row = WriteTotalRow(ws, row, "Associate Total", assocSeconds, assocAxxima);
-                    row = WriteTotalRow(ws, row, "Activity Total", activitySeconds, activityAxxima);
-                    row = WriteTotalRow(ws, row, "Client Total", clientSeconds, clientAxxima);
-
-                    ResetAssociateTotals();
-                    ResetActivityTotals();
-                    ResetClientTotals();
-
-                    currentClient = item.Client;
-                    currentActivity = item.Activity;
-                    currentEmployee = item.EmployeeNumber;
-                }
-                else if (activityChanged)
-                {
-                    row = WriteDivider(ws, row);
-                    row = WriteTotalRow(ws, row, "Associate Total", assocSeconds, assocAxxima);
-                    row = WriteTotalRow(ws, row, "Activity Total", activitySeconds, activityAxxima);
-
-                    ResetAssociateTotals();
-                    ResetActivityTotals();
-
-                    currentActivity = item.Activity;
-                    currentEmployee = item.EmployeeNumber;
-                }
-                else if (employeeChanged)
-                {
-                    row = WriteDivider(ws, row);
-                    row = WriteTotalRow(ws, row, "Associate Total", assocSeconds, assocAxxima);
-
-                    ResetAssociateTotals();
-
-                    currentEmployee = item.EmployeeNumber;
-                }
-
-                assocSeconds += item.Seconds;
-                activitySeconds += item.Seconds;
-                clientSeconds += item.Seconds;
-                grandSeconds += item.Seconds;
-
-                assocAxxima += item.AxximaRates;
-                activityAxxima += item.AxximaRates;
-                clientAxxima += item.AxximaRates;
-                grandAxxima += item.AxximaRates;
-
-                ws.Cell(row, 1).Value = $"{item.Project}:{item.Client}";
-                ws.Cell(row, 2).Value = item.Activity;
-                ws.Cell(row, 3).Value = item.LastName;
-                ws.Cell(row, 4).Value = item.Date.ToString("M/d/yyyy");
-                ws.Cell(row, 5).Value = CalcDecimalTime(item.Seconds);
-                ws.Cell(row, 6).Value = item.AxximaRates;
-                ws.Cell(row, 7).Value = item.Comment;
-
-                ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00000";
-                ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-                ws.Cell(row, 7).Style.Alignment.WrapText = true;
-
-                row++;
             }
 
-            if (orderedRows.Count > 0)
-            {
-                row = WriteDivider(ws, row);
-                row = WriteTotalRow(ws, row, "Associate Total", assocSeconds, assocAxxima);
-                row = WriteTotalRow(ws, row, "Activity Total", activitySeconds, activityAxxima);
-                row = WriteTotalRow(ws, row, "Client Total", clientSeconds, clientAxxima);
-                WriteTotalRow(ws, row, "Grand Total", grandSeconds, grandAxxima, true);
-            }
-        }
-
-        private int GenerateLevel1Total(IXLWorksheet ws, int row, double seconds, double axximaRates)
-        {
-            GenerateLine(ws, row);
-            row += 2;
-            row = CreateLevelTotal(ws, row, seconds, axximaRates, 1);
-            return row;
-        }
-        private static int WriteDivider(IXLWorksheet ws, int row)
-        {
-            ws.Range(row, 1, row, 7).Style.Border.TopBorder = XLBorderStyleValues.Thick;
-            return row + 1;
-        }
-
-        private static int WriteTotalRow(
-            IXLWorksheet ws,
-            int row,
-            string label,
-            double seconds,
-            double amount,
-            bool grandTotal = false)
-        {
-            ws.Cell(row, 4).Value = label;
-            ws.Cell(row, 5).Value = CalcDecimalTime(seconds);
-            ws.Cell(row, 6).Value = amount;
-
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00000";
-            ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-
-            var range = ws.Range(row, 1, row, 7);
-            range.Style.Font.Bold = true;
-
-            if (grandTotal)
-            {
-                range.Style.Fill.BackgroundColor = XLColor.LightGray;
-            }
-            else
-            {
-                range.Style.Fill.BackgroundColor = XLColor.FromHtml("#F8F9FA");
-            }
-
-            return row + 2;
-        }
-        private void AddDetailRow(IXLWorksheet ws, WipDetailReportData data, int row)
-        {
-            row += 1;
-
-            ws.Cell(row, 1).Value = $"{data.Project}:{data.Client}";
-            ws.Cell(row, 2).Value = data.Activity;
-            ws.Cell(row, 3).Value = data.LastName;
-            ws.Cell(row, 4).Value = data.Date.ToString("d");
-            ws.Cell(row, 5).Value = CalcDecimalTime(data.Seconds);
-            ws.Cell(row, 6).Value = data.AxximaRates;
-            ws.Cell(row, 7).Value = data.Comment;
-
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00000";
-            ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-            ws.Cell(row, 7).Style.Alignment.WrapText = true;
-        }
-
-        private void GenerateLine(IXLWorksheet ws, int row)
-        {
-            ws.Range(row, 1, row, 7).Style.Border.BottomBorder = XLBorderStyleValues.Thin;
-        }
-
-        private int CreateLevelTotal(
-            IXLWorksheet ws,
-            int row,
-            double seconds,
-            double axximaRates,
-            int type)
-        {
-            bool addPageBreak = false;
-
-            if (type == 1)
-            {
-                ws.Cell(row, 4).Value = "Associate Total";
-            }
-            else if (type == 2)
-            {
-                ws.Cell(row, 4).Value = "Activity Total";
-            }
-            else if (type == 3)
-            {
-                ws.Cell(row, 4).Value = "Client Total";
-                addPageBreak = true;
-            }
-            else if (type == 4)
-            {
-                ws.Cell(row, 4).Value = "Grand Total";
-            }
-
-            ws.Cell(row, 5).Value = CalcDecimalTime(seconds);
-            ws.Cell(row, 6).Value = axximaRates;
-
-            ws.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00000";
-            ws.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
-
-            row += 2;
-
-            if (addPageBreak)
-            {
-                ws.Row(row).InsertRowsAbove(1);
-                row += 1;
-                ws.PageSetup.AddHorizontalPageBreak(row);
-            }
-
-            return row;
-        }
-
-        private static string CalcDecimalTime(double seconds)
-        {
-            int h = (int)(seconds / 3600);
-            int remainingSeconds = (int)(seconds - (h * 3600));
-            double fractionalHours = (double)remainingSeconds / 3600;
-            double value = h + fractionalHours;
-            return value.ToString("0.000000");
+            ws.Column(7).Style.Alignment.WrapText = true;
         }
     }
 }
