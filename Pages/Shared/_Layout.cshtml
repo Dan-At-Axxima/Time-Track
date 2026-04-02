@@ -44,6 +44,14 @@
                                 <a class="navbar-brand" asp-area="" asp-page="/AdminFunctions">Admin Functions</a>
                             </li>
                         }
+                        @if (User.IsInRole("ReportViewer"))
+                        {
+                            <li class="nav-item">
+                                <a class="navbar-brand" asp-area="" asp-page="/Reports/Index">Reports</a>
+                            </li>
+
+                        }
+                        
                     </ul>
 
                     <partial name="_LoginPartial" />

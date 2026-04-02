@@ -6,7 +6,7 @@ using TimeTrackerRepo.Services.Reports;
 
 namespace TimeTrackerRepo.Pages.Reports
 {
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Roles = "Administrator,ReportViewer")]
     public class IndexModel : PageModel
     {
         private readonly ExtractReportService _extractReportService;

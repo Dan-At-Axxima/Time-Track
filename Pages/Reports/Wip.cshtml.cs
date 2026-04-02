@@ -7,7 +7,7 @@ using TimeTrackerRepo.Services.Reports;
 
 namespace TimeTrackerRepo.Pages.Reports;
 
-[Authorize(Roles = "Administrator")]
+[Authorize(Roles = "Administrator,ReportViewer")]
 public class WipModel : PageModel
 {
     private readonly WipDetailReportService _service;
@@ -42,7 +42,7 @@ public class WipModel : PageModel
     public string StatusMessage { get; set; } = string.Empty;
 
     public string ReportTitle =>
-        CompanyCode == 1
+        CompanyCode == 2
             ? "AXXIMA WIP DETAIL REPORT"
             : "330 WIP DETAIL REPORT";
 
@@ -87,7 +87,7 @@ public class WipModel : PageModel
         var displayRows = BuildDisplayRows(rows);
         var fileBytes = _exporter.ExportSingleCompanyReport(ReportTitle, displayRows);
 
-        var fileName = CompanyCode == 1
+        var fileName = CompanyCode == 2
             ? $"WipDetail_Axxima_{DateTime.Now:yyyyMMddHHmmss}.xlsx"
             : $"WipDetail_330_{DateTime.Now:yyyyMMddHHmmss}.xlsx";
 

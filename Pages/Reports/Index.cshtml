@@ -1,6 +1,7 @@
 ﻿@page
+@using Microsoft.AspNetCore.Authorization
 @model TimeTrackerRepo.Pages.Reports.IndexModel
-@attribute [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Administrator")]
+
 
 @{
     ViewData["Title"] = "Reports";
@@ -63,11 +64,11 @@
     </a>
 
     <a class="btn btn-outline-primary rounded-pill px-4" href="@wipCompany2Url">
-        Wip Company 2
+        AXXIMA WIP DETAIL
     </a>
 
     <a class="btn btn-outline-primary rounded-pill px-4" href="@wipCompany1Url">
-        Wip Company 1
+        330 WIP DETAIL
     </a>
 
     <a class="btn btn-outline-primary rounded-pill px-4" href="@missingHoursUrl">
