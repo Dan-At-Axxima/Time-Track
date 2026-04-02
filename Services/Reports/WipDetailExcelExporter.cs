@@ -16,6 +16,7 @@ namespace TimeTrackerRepo.Services.Reports
             ws.Column(2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
             ws.Column(2).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
             ws.Column(4).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
+            ws.Column(4).Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Right;
             ws.Column(5).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
             ws.Column(6).Style.Alignment.Vertical = XLAlignmentVerticalValues.Top;
             GenerateHeader(ws, reportTitle);
@@ -82,6 +83,10 @@ namespace TimeTrackerRepo.Services.Reports
                         ws.Cell(rowNumber, 1).Value = row.ClientProject ?? string.Empty;
                         ws.Cell(rowNumber, 2).Value = row.Activity ?? string.Empty;
                         ws.Cell(rowNumber, 3).Value = row.Associate ?? string.Empty;
+                        if (DateTime.TryParse(row.DateText, out var dt))
+                        {
+                            row.DateText = dt.ToString("yyyy-MM-dd");
+                        }
                         ws.Cell(rowNumber, 4).Value = row.DateText ?? string.Empty;
 
                         var txt = row.TimeText;
